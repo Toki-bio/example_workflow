@@ -1,0 +1,39 @@
+name: synthetic-demo
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  run-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: envs/environment.yml
+          activate-environment: cardio-pipeline
+
+      - name: Run synthetic 2-sample demo end-to-end
+        shell: bash -l {0}
+        run: |
+          cd test_case
+          chmod +x run_demo.sh prepare_demo.sh ../pipeline/*.sh
+          ./run_demo.sh
+
+      - name: Verify case1 shows the pathogenic variant and control1 does not
+        shell: bash -l {0}
+        run: |
+          cd test_case
+          python check_demo.py results
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-reports
+          path: |
+            test_case/results/*.report.html
+            test_case/results/aggregated_pathogenic_variants.json
