@@ -1,5 +1,10 @@
 # DRAGEN feature → open-source replacement mapping
 
+Stage-by-stage mapping for the specific cardiomyopathy-panel case study described in
+[`ORIGINAL_DRAGEN_PIPELINE.md`](ORIGINAL_DRAGEN_PIPELINE.md). For where DRAGEN and its
+replacements sit in the wider genomic data/tooling landscape (sequencing vs. array data, other
+goal tiers), see [`DATA_TYPES_AND_WORKFLOWS.md`](DATA_TYPES_AND_WORKFLOWS.md).
+
 | Stage | Original (DRAGEN, FPGA + licensed) | Replacement (CPU-only, open source) | Notes |
 |---|---|---|---|
 | Read QC | DRAGEN internal trimmer metrics | `fastp` (QC + adapter trimming) + `fastqc` | Both already used for QC-only checks in the original setup. |
@@ -12,7 +17,7 @@
 | Annotation | Illumina Nirvana (licensed data bundle: ClinVar, gnomAD, 1000G, TopMed, MITOMAP, COSMIC, REVEL, CADD, PhyloP, GERP, transcripts...) | **snpEff** (transcript/consequence annotation, already installed) + `bcftools annotate` with the public **ClinVar VCF** (clinical significance) for the primary path; **Ensembl VEP** (with the ClinVar + gnomAD custom annotations) as a second, cross-validating annotation engine. | All annotation sources used (ClinVar, gnomAD) are free/public; no licensed content is bundled in this repo. |
 | Pathogenic extraction | `jq` over Nirvana JSON, ClinVar significance regex match | Equivalent `jq`/Python logic over the VCF `INFO` fields populated by snpEff/VEP + `bcftools annotate` | Same "select ClinVar Pathogenic/Likely pathogenic" rule, same case/control tagging and aggregation logic. |
 | Case/control aggregation | `aggregated_pathogenic_variants.json` (group by variant, count case vs control) | Same aggregation logic, same output shape | Ported almost unchanged — this stage was tool-agnostic to begin with. |
-| Reporting | `single_sample_report.py` HTML report keyed to the 26-gene panel | Same script, adapted field-extraction to read from the annotated VCF instead of Nirvana JSON | Same gene panel (`panel/cardiomyopathy_genes.txt`), same clinical filter thresholds. |
+| Reporting | `single_sample_report.py` HTML report keyed to the 26-gene panel | Same script, adapted field-extraction to read from the annotated VCF instead of Nirvana JSON | Same gene panel (`panels/cardiomyopathy/cardiomyopathy_genes.txt`), same clinical filter thresholds. |
 
 ## Expected differences vs. the original DRAGEN output
 

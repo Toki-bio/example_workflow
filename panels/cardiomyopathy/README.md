@@ -1,5 +1,8 @@
 # Cardiomyopathy gene panel
 
+This is the worked example panel used throughout this repo — see
+[`panels/README.md`](../README.md) for the general panel pattern this fits into.
+
 `cardiomyopathy_genes.txt` — the 26-gene panel carried over unchanged from the original
 DRAGEN-based pipeline's clinical report generator.
 

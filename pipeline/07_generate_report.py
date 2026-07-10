@@ -3,7 +3,8 @@
 
 Adapted from the original DRAGEN-pipeline `single_sample_report.py`, which read Illumina
 Nirvana JSON; this version reads the snpEff + ClinVar annotated VCF produced by stage 04 and
-keeps the same 26-gene cardiomyopathy panel and clinical filtering logic:
+keeps the same panel-based clinical filtering logic (panel is a config, not a fixed gene list --
+see panels/README.md):
 
   - Pathogenic / Likely pathogenic ClinVar calls: always included
   - Uncertain significance (VUS): included
@@ -12,7 +13,7 @@ keeps the same 26-gene cardiomyopathy panel and clinical filtering logic:
   - Everything else: excluded
 
 Usage:
-    07_generate_report.py <annotated.vcf.gz> <sample_id> <panel_genes.txt> <output.html>
+    07_generate_report.py <annotated.vcf.gz> <sample_id> <panel_genes.txt> <output.html> [panel_name]
 """
 import gzip
 import html
@@ -159,7 +160,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>Cardiomyopathy panel report -- {sample_id}</title>
+<title>{panel_name} panel report -- {sample_id}</title>
 <style>
   body {{ font-family: -apple-system, Segoe UI, Arial, sans-serif; margin: 2rem; color: #222; }}
   h1 {{ font-size: 1.4rem; }}
@@ -174,7 +175,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </style>
 </head>
 <body>
-<h1>Cardiomyopathy panel report</h1>
+<h1>{panel_name} panel report</h1>
 <div class="meta">
   Sample: <strong>{sample_id}</strong> &middot;
   Variants shown: {n_rows} (clinical filter: pathogenic/likely-pathogenic/VUS, panel genes, HIGH impact) &middot;
@@ -219,7 +220,7 @@ document.querySelectorAll('#report th').forEach(function (th, idx) {{
 """
 
 
-def render_html(sample_id, rows):
+def render_html(sample_id, rows, panel_name):
     row_html = []
     for r in rows:
         sig_label, sig_color = SIG_STYLE.get(r["significance"], SIG_STYLE["unknown"])
@@ -245,22 +246,28 @@ def render_html(sample_id, rows):
             clinvar_link=clinvar_link,
             phenotypes=html.escape(r["clinvar_phenotypes"]),
         ))
-    return HTML_TEMPLATE.format(sample_id=html.escape(sample_id), n_rows=len(rows), rows="\n".join(row_html))
+    return HTML_TEMPLATE.format(
+        sample_id=html.escape(sample_id),
+        panel_name=html.escape(panel_name),
+        n_rows=len(rows),
+        rows="\n".join(row_html),
+    )
 
 
 def main():
-    if len(sys.argv) != 5:
-        print(f"Usage: {sys.argv[0]} <annotated.vcf.gz> <sample_id> <panel_genes.txt> <output.html>",
+    if len(sys.argv) not in (5, 6):
+        print(f"Usage: {sys.argv[0]} <annotated.vcf.gz> <sample_id> <panel_genes.txt> <output.html> [panel_name]",
               file=sys.stderr)
         sys.exit(1)
 
     vcf_path, sample_id, panel_path, out_path = sys.argv[1:5]
+    panel_name = sys.argv[5] if len(sys.argv) == 6 else "Gene panel"
     panel_genes = load_panel(panel_path)
     rows = build_rows(vcf_path, panel_genes)
     rows.sort(key=lambda r: (r["significance"] not in ("pathogenic", "likely_pathogenic"), not r["in_panel"]))
 
     with open(out_path, "w") as out:
-        out.write(render_html(sample_id, rows))
+        out.write(render_html(sample_id, rows, panel_name))
 
     print(f"[{sample_id}] {len(rows)} clinically-relevant variants -> {out_path}", file=sys.stderr)
 

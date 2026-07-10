@@ -1,4 +1,4 @@
-name: cardio-pipeline
+name: variant-pipeline
 channels:
   - conda-forge
   - bioconda

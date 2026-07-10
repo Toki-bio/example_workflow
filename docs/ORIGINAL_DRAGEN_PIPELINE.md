@@ -5,6 +5,11 @@ This document reconstructs the pipeline as it was actually run in production, ba
 annotation/reporting scripts. It is kept here purely as a historical/technical reference —
 **no real sample data or patient identifiers are included anywhere in this repository.**
 
+This is one specific case study (a cardiomyopathy gene panel run on DRAGEN), not a description of
+the pipeline architecture in general. For the broader, panel-agnostic picture of genomic data
+types and workflows this repo's replacement pipeline fits into, see
+[`DATA_TYPES_AND_WORKFLOWS.md`](DATA_TYPES_AND_WORKFLOWS.md).
+
 ## 1. Purpose
 
 Whole-genome paired-end FASTQ from patients (cases) and unaffected individuals (controls)

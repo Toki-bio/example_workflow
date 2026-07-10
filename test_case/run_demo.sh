@@ -11,7 +11,9 @@ cd "$SCRIPT_DIR"
 
 export REF_FASTA="$SCRIPT_DIR/refs/panel_region.fa"
 export CLINVAR_VCF="$SCRIPT_DIR/refs/clinvar_panel_subset.vcf.gz"
-export PANEL_GENES="$REPO_ROOT/panel/cardiomyopathy_genes.txt"
+export PANEL_GENES="$REPO_ROOT/panels/cardiomyopathy/cardiomyopathy_genes.txt"
+export PANEL_BED="$REPO_ROOT/panels/cardiomyopathy/cardiomyopathy_genes_grch38.bed"
+export PANEL_NAME="Cardiomyopathy (demo)"
 export OUT_DIR="$SCRIPT_DIR/results"
 export THREADS="${THREADS:-2}"
 

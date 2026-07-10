@@ -28,7 +28,8 @@ while IFS=$'\t' read -r sample_id sample_type r1 r2; do
   python3 "$SCRIPT_DIR/07_generate_report.py" \
     "$OUT_DIR/${sample_id}.bcftools.annotated.vcf.gz" \
     "$sample_id" "$PANEL_GENES" \
-    "$OUT_DIR/${sample_id}.report.html"
+    "$OUT_DIR/${sample_id}.report.html" \
+    "$PANEL_NAME"
 done < "$manifest"
 
 log "Aggregating pathogenic calls across the cohort"

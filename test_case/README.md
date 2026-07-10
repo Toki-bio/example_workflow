@@ -30,7 +30,7 @@ this minimal demo and are skipped automatically if not installed):
 
 ```bash
 conda env create -f ../envs/environment.yml
-conda activate cardio-pipeline
+conda activate variant-pipeline
 
 ./run_demo.sh
 python check_demo.py results
