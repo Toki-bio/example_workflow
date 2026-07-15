@@ -668,6 +668,41 @@ export TMP_DIR="${s.tmpDir}"`;
     saveState();
   }
 
+  const NAV_ITEMS = [
+    { href: "#overview", label: "Overview" },
+    ...STAGES.map((s) => ({ href: "#stage-" + s.id, label: s.num + " " + s.title })),
+    { href: "#roadmap", label: "Roadmap" },
+  ];
+
+  function buildNavLinks(container) {
+    container.innerHTML = "";
+    NAV_ITEMS.forEach((item) => {
+      const a = document.createElement("a");
+      a.href = item.href;
+      a.textContent = item.label;
+      container.appendChild(a);
+    });
+  }
+
+  function initScrollSpy() {
+    const links = document.querySelectorAll(".site-nav .steps a, .contents-links a");
+    const sections = NAV_ITEMS.map((item) => document.querySelector(item.href)).filter(Boolean);
+
+    function onScroll() {
+      let current = sections[0];
+      const offset = 120;
+      sections.forEach((sec) => {
+        if (sec.getBoundingClientRect().top <= offset) current = sec;
+      });
+      const id = current ? "#" + current.id : "";
+      links.forEach((link) => {
+        link.classList.toggle("active", link.getAttribute("href") === id);
+      });
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+
   function buildPage() {
     renderedVarKeys.clear();
     const container = document.getElementById("pipeline-stages");
@@ -677,13 +712,9 @@ export TMP_DIR="${s.tmpDir}"`;
     document.getElementById("reset-all")?.addEventListener("click", resetAll);
     document.getElementById("load-demo")?.addEventListener("click", resetAll);
 
-    const navSteps = document.getElementById("nav-steps");
-    STAGES.forEach((stage) => {
-      const a = document.createElement("a");
-      a.href = "#stage-" + stage.id;
-      a.textContent = stage.num + " " + stage.title.split(" ")[0];
-      navSteps.appendChild(a);
-    });
+    buildNavLinks(document.getElementById("nav-steps"));
+    buildNavLinks(document.getElementById("contents-links"));
+    initScrollSpy();
   }
 
   async function init() {

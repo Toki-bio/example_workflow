@@ -16,7 +16,14 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+}
+
+[id] {
+  scroll-margin-top: 5.5rem;
+}
 
 body {
   margin: 0;
@@ -56,9 +63,68 @@ a { color: var(--accent); }
 .site-nav .steps a {
   color: #94a3b8;
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.site-nav .steps a:hover { color: #fff; }
+.site-nav .steps a:hover,
+.site-nav .steps a.active { color: #fff; }
+
+.contents-nav {
+  margin: 1.5rem 0 2rem;
+  padding: 1rem 1.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.contents-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.65rem;
+}
+
+.contents-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.55rem;
+}
+
+.contents-links a,
+.stage-jump a {
+  display: inline-block;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+  text-decoration: none;
+  color: var(--accent);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+}
+
+.contents-links a:hover,
+.stage-jump a:hover {
+  background: #dbeafe;
+  color: var(--accent-hover);
+}
+
+.diagram-caption {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin: 0.5rem 0 1rem;
+}
+
+.stage-jump {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+}
+
+.stage-jump span {
+  color: var(--muted);
+  margin-right: 0.35rem;
+}
 
 main {
   max-width: var(--max-width);

@@ -37,15 +37,22 @@
     </p>
     <div class="mermaid-wrap">
       <pre class="mermaid">
-flowchart TB
-    FASTQ["FASTQ or FASTQ.GZ"] --> Align["02 align"]
-    Align --> Call["03 call variants"]
-    Call --> Annotate["04 annotate"]
-    Annotate --> Filter["05 filter pathogenic"]
-    Filter --> Report["07 HTML report"]
-    Filter --> Aggregate["06 cohort aggregate"]
+flowchart LR
+    subgraph seq ["Sequencing data — implemented in this repo"]
+        FASTQ["FASTQ / FASTQ.GZ"] --> BAMCRAM["BAM / CRAM"] --> VCF1[VCF]
+    end
+    subgraph arr ["Array / genotyping — roadmap"]
+        IDATCEL["IDAT / CEL"] --> PLINKfmt["PLINK BED/BIM/FAM"] --> Imputation --> VCF2[VCF]
+    end
+    VCF1 --> Converge["Annotation + reporting"]
+    VCF2 --> Converge
+    Converge --> Goals["Clinical panel · Population frequency · WGS · PRS/GWAS · Pharmacogenomics"]
       </pre>
     </div>
+    <p class="diagram-caption">
+      Both pathways converge at <strong>VCF</strong>. This walkthrough covers the
+      <strong>sequencing</strong> branch (left). The array branch (right) is documented but not yet implemented.
+    </p>
     <table>
       <tr><th>Tool family</th><th>Input</th><th>Role</th></tr>
       <tr><td>bwa + samtools</td><td>FASTQ</td><td>Align, sort, mark duplicates</td></tr>
@@ -61,6 +68,11 @@ flowchart TB
       <a href="DRAGEN_TO_OSS_MAPPING.md">DRAGEN mapping</a>
     </p>
   </section>
+
+  <nav class="contents-nav" id="contents" aria-label="Page contents">
+    <div class="contents-title">Contents — click a step to jump</div>
+    <div class="contents-links" id="contents-links"></div>
+  </nav>
 
   <h2>Pipeline stages</h2>
   <p class="section-note">
