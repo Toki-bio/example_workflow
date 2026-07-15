@@ -18,9 +18,11 @@
 <main id="top">
   <h1>Germline variant-calling pipeline</h1>
   <p class="lead">
-    Read this page from top to bottom. Each stage shows the variables it uses (with short explanations),
-    how to run it, and the full script in an editable window. Change any variable — every unlocked script
-    and run command updates immediately. Accepts <code>.fastq</code> and <code>.fastq.gz</code> inputs.
+    This page documents a pipeline you run <strong>on your own machine</strong> after cloning the
+    repo — it is not a web service. Read <a href="#getting-started">Getting started</a> first
+    (working folder, what's bundled vs what you download), then use the stage walkthrough below.
+    Change any variable — scripts update immediately. Accepts <code>.fastq</code> and
+    <code>.fastq.gz</code>.
   </p>
 
   <div class="global-toolbar">
@@ -61,7 +63,8 @@ flowchart LR
       <tr><td>PLINK</td><td>Array genotypes</td><td>Different path — roadmap</td></tr>
     </table>
     <p class="hint">
-      Quick synthetic demo (fixed commands):
+      New here? Read <a href="#getting-started">Getting started</a> (working folder, demo vs real data).
+      Quick demo:
       <code>conda activate variant-pipeline && cd test_case && ./run_demo.sh</code>
       · More docs:
       <a href="DATA_TYPES_AND_WORKFLOWS.md">data types</a>,
@@ -74,10 +77,256 @@ flowchart LR
     <div class="contents-links" id="contents-links"></div>
   </nav>
 
+  <section class="getting-started" id="getting-started">
+    <h2>Getting started: where it runs, working folder, what's included</h2>
+
+    <h3>Where does this run?</h3>
+    <p>
+      On <strong>your computer</strong> — Linux, macOS, or WSL on Windows — in a bash terminal.
+      You clone the GitHub repo, install a conda environment (or put the tools on <code>PATH</code>),
+      then run shell scripts locally. This web page is only the guide; it does not execute anything.
+    </p>
+
+    <h3>Do I need a working folder?</h3>
+    <p>
+      Yes. Clone the repo anywhere — that directory is your project root. You run commands from
+      specific subfolders; paths in the settings below are <strong>paths on your machine</strong>
+      (relative to where you run the script, or absolute). The pipeline writes outputs to
+      <code>OUT_DIR</code>, which it creates if missing — you choose that folder.
+    </p>
+    <pre class="workspace-layout">~/work/example_workflow/          ← git clone (project root)
+├── pipeline/                     ← scripts (stage 00–07, run_pipeline.sh)
+├── test_case/                    ← demo: run ./run_demo.sh from here
+├── panels/                       ← example gene panel (shipped)
+└── test_case/results/            ← demo OUT_DIR (created on first run)
+
+/data/genomics/                   ← recommended for real WGS (outside repo, any path you like)
+├── refs/hg38.fa                  ← REF_FASTA — large, download once
+├── clinvar/clinvar_grch38.vcf.gz ← CLINVAR_VCF — download once
+└── fastq/sample_R1.fastq.gz      ← your sequencer output</pre>
+    <p class="guide-note">
+      <strong>Tip:</strong> keep multi-gigabyte reference files outside the git repo. Point
+      <code>REF_FASTA</code> and <code>CLINVAR_VCF</code> at them with absolute paths, or export
+      those variables before running (see stage 00).
+    </p>
+
+    <h3>Start here: demo first, real data second</h3>
+    <ol class="setup-steps">
+      <li>
+        <strong>Clone and install tools (once)</strong>
+        <pre class="inline-cmd">git clone https://github.com/Toki-bio/example_workflow.git
+cd example_workflow
+conda env create -f envs/environment.yml
+conda activate variant-pipeline</pre>
+        This installs <code>bwa</code>, <code>samtools</code>, <code>bcftools</code>,
+        <code>GATK4</code>, <code>snpEff</code> (the program), etc. It does <em>not</em> install
+        whole-genome reference FASTAs, full ClinVar, or snpEff annotation databases.
+      </li>
+      <li>
+        <strong>Run the built-in demo (no extra downloads)</strong>
+        <pre class="inline-cmd">cd test_case
+./run_demo.sh</pre>
+        Everything the demo needs is already in the repo: a tiny reference slice, synthetic FASTQs,
+        a one-variant ClinVar subset, and the example panel. Outputs land in
+        <code>test_case/results/</code>.
+      </li>
+      <li>
+        <strong>Move to real data (when ready)</strong> — download reference + ClinVar (see
+        <a href="#inputs-guide">inputs guide</a>), put your FASTQs somewhere, write a
+        <code>samples.tsv</code> manifest, set paths in stage 00 (or export env vars), run
+        <code>01_prepare_reference.sh</code> once, then <code>run_pipeline.sh</code>.
+      </li>
+    </ol>
+
+    <h3>Three kinds of settings — file path vs tool name vs your choice</h3>
+    <p>
+      Knowing snpEff as a tool is not the same as knowing what to type in the pipeline config.
+      Most confusion is mixing up <strong>files you point at</strong> with <strong>names that tell
+      a tool which built-in resource to use</strong>.
+    </p>
+    <table class="kind-table">
+      <tr>
+        <th>Kind</th>
+        <th>What you type</th>
+        <th>Who owns the data?</th>
+        <th>Examples</th>
+      </tr>
+      <tr>
+        <td><span class="kind-badge kind-file">File path</span></td>
+        <td>Path to a file on disk</td>
+        <td>You download or create the file; the pipeline reads it by path</td>
+        <td><code>REF_FASTA</code>, <code>CLINVAR_VCF</code>, FASTQ paths, <code>PANEL_BED</code>, <code>MANIFEST_TSV</code></td>
+      </tr>
+      <tr>
+        <td><span class="kind-badge kind-tool">Tool lookup name</span></td>
+        <td>A short name, not a path</td>
+        <td>The tool finds data in its own install location after you run its download command</td>
+        <td><code>SNPEFF_DB</code> → <code>snpEff download GRCh38.mane.1.2.ensembl</code> stores DB under snpEff's <code>data/</code>. <code>BCFTOOLS_PLOIDY</code> → preset built into bcftools (<code>bcftools call -l</code>).</td>
+      </tr>
+      <tr>
+        <td><span class="kind-badge kind-setting">Setting you choose</span></td>
+        <td>Folder, number, or label</td>
+        <td>No download — you pick a writable directory or display name</td>
+        <td><code>OUT_DIR</code>, <code>TMP_DIR</code>, <code>THREADS</code>, <code>PANEL_NAME</code>, <code>sample_id</code></td>
+      </tr>
+    </table>
+
+    <h3>What is available by default?</h3>
+    <table class="defaults-table">
+      <tr>
+        <th>Item</th>
+        <th>In git repo?</th>
+        <th>In conda env?</th>
+        <th>For real WGS you must…</th>
+      </tr>
+      <tr>
+        <td>Pipeline scripts</td>
+        <td>Yes</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Demo reference + FASTQs + ClinVar subset</td>
+        <td>Yes (<code>test_case/</code>)</td>
+        <td>—</td>
+        <td>Use demo paths, or replace with your own</td>
+      </tr>
+      <tr>
+        <td>Example gene panel (cardiomyopathy)</td>
+        <td>Yes (<code>panels/</code>)</td>
+        <td>—</td>
+        <td>Swap or keep; BED must match your reference build</td>
+      </tr>
+      <tr>
+        <td>bwa, samtools, bcftools, GATK4, snpEff program</td>
+        <td>—</td>
+        <td>Yes (after <code>conda env create</code>)</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Whole-genome reference FASTA (hg38, etc.)</td>
+        <td>No</td>
+        <td>No</td>
+        <td>Download (~3 GB for hg38); set <code>REF_FASTA</code></td>
+      </tr>
+      <tr>
+        <td>Full ClinVar VCF</td>
+        <td>No (demo has 1-variant subset only)</td>
+        <td>No</td>
+        <td>Download from NCBI FTP; set <code>CLINVAR_VCF</code></td>
+      </tr>
+      <tr>
+        <td>snpEff annotation database</td>
+        <td>No</td>
+        <td>No — tool only, not the DB</td>
+        <td>Run <code>snpEff download &lt;name&gt;</code>; set <code>SNPEFF_DB</code> to that name. Optional — pipeline skips if missing.</td>
+      </tr>
+      <tr>
+        <td>Your sequencing FASTQs</td>
+        <td>Demo synthetic only</td>
+        <td>—</td>
+        <td>Provide paths in manifest or per-sample stages</td>
+      </tr>
+    </table>
+  </section>
+
+  <section class="inputs-guide" id="inputs-guide">
+    <h2>Input reference: each variable in detail</h2>
+    <p class="guide-note">
+      Quick lookup table. Per-stage fields below repeat the same explanations. All reference
+      variables must use the <strong>same genome build</strong> (GRCh37, GRCh38, T2T, etc.).
+    </p>
+    <table>
+      <tr>
+        <th>Variable</th>
+        <th>Kind</th>
+        <th>Default / demo</th>
+        <th>Where and how to get it (real data)</th>
+      </tr>
+      <tr>
+        <th><code>REF_FASTA</code></th>
+        <td>File path</td>
+        <td><code>test_case/refs/panel_region.fa</code> (tiny slice, in repo)</td>
+        <td>
+          Download whole-genome FASTA for your build:
+          <a href="https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/">UCSC hg38</a>,
+          <a href="https://gatk.broadinstitute.org/hc/en-us/articles/360035535932-GATK-Resource-Bundle">GATK bundle</a>,
+          or <a href="https://github.com/marbl/CHM13">T2T-CHM13</a>.
+          Run stage 01 once to build indexes (<code>bwa index</code>, etc.).
+        </td>
+      </tr>
+      <tr>
+        <th><code>CLINVAR_VCF</code></th>
+        <td>File path</td>
+        <td><code>test_case/refs/clinvar_panel_subset.vcf.gz</code> (1 variant, in repo)</td>
+        <td>
+          <code>wget</code> from NCBI —
+          <a href="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz">vcf_GRCh38/clinvar.vcf.gz</a>
+          or <a href="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz">vcf_GRCh37/</a>.
+          Must match <code>REF_FASTA</code> build. Stage 01 runs <code>tabix</code> if present.
+        </td>
+      </tr>
+      <tr>
+        <th><code>SNPEFF_DB</code></th>
+        <td>Tool lookup name</td>
+        <td><code>GRCh38.mane.1.2.ensembl</code> — <strong>not installed</strong> unless you run download</td>
+        <td>
+          Not a file you browse to. After conda env: <code>snpEff databases</code> (list),
+          <code>snpEff download GRCh38.mane.1.2.ensembl</code> (installs into snpEff's
+          <code>data/</code>). Type the same name here. Optional — ClinVar annotation still runs without it.
+        </td>
+      </tr>
+      <tr>
+        <th><code>BCFTOOLS_PLOIDY</code></th>
+        <td>Tool lookup name</td>
+        <td><code>GRCh38</code> (built into bcftools)</td>
+        <td>
+          No download. <code>bcftools call -l</code> lists presets. Match your reference:
+          <code>GRCh38</code> for hg38, <code>GRCh37</code> for hg19.
+        </td>
+      </tr>
+      <tr>
+        <th><code>PANEL_GENES</code><br><code>PANEL_BED</code></th>
+        <td>File path</td>
+        <td><code>panels/cardiomyopathy/</code> (in repo)</td>
+        <td>
+          You maintain these for your panel. Gene list = one symbol per line. BED = coordinates from
+          <a href="https://www.ensembl.org/biomart">Ensembl BioMart</a> or UCSC — must match
+          <code>REF_FASTA</code> build.
+        </td>
+      </tr>
+      <tr>
+        <th><code>OUT_DIR</code> / <code>TMP_DIR</code></th>
+        <td>Setting you choose</td>
+        <td><code>test_case/results</code></td>
+        <td>Any writable folder; pipeline creates it. Use fast disk for <code>TMP_DIR</code> on large runs.</td>
+      </tr>
+      <tr>
+        <th>FASTQ paths</th>
+        <td>File path</td>
+        <td><code>test_case/fastq/case1_R*.fastq.gz</code> (synthetic, in repo)</td>
+        <td>Your sequencer / demultiplexing output. Plain <code>.fastq</code> or <code>.fastq.gz</code>.</td>
+      </tr>
+      <tr>
+        <th><code>MANIFEST_TSV</code></th>
+        <td>File you create</td>
+        <td><code>test_case/samples.tsv</code></td>
+        <td>
+          Tab-separated table you write: <code>sample_id</code>,
+          <code>case</code>|<code>control</code>, R1 path, R2 path. One row per sample.
+        </td>
+      </tr>
+    </table>
+    <p class="guide-note">
+      Per-stage fields below repeat these variables with the same What / Where / Example blocks.
+    </p>
+  </section>
+
   <h2>Pipeline stages</h2>
   <p class="section-note">
-    Variables repeat at each stage where they apply, so you always see context in logical order.
-    Duplicate fields stay in sync. Lock a script after manual edits to prevent overwrites.
+    Work through <a href="#getting-started">Getting started</a> first if you have not run the demo yet.
+    Each field shows <em>Kind</em> (file path vs tool name), <em>Demo default</em>, and how to obtain
+    values for real data. Duplicate fields stay in sync. Lock a script after manual edits.
   </p>
 
   <div id="pipeline-stages"></div>

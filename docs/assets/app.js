@@ -23,90 +23,162 @@
     caller: "bcftools",
   };
 
+  const KIND_LABELS = {
+    file: "File path — you download or create this file on disk",
+    tool: "Tool lookup name — not a path; install via the tool's own command",
+    setting: "Setting you choose — folder, number, or label",
+    create: "File you create — you write this yourself",
+  };
+
   const VAR_META = {
     refFasta: {
       label: "REF_FASTA",
-      help: "Reference FASTA for alignment and calling — any build (GRCh37/hg19, GRCh38/hg38, T2T-CHM13, custom). ClinVar, panel BED, snpEff DB, and BCFTOOLS_PLOIDY must match the same build.",
       group: "reference",
+      kind: "file",
+      bundled: "test_case/refs/panel_region.fa (tiny slice, in repo)",
+      what: "Path to your reference genome FASTA — reads align to this sequence; variants are called relative to it.",
+      where: "Real WGS: download whole-genome FASTA (GRCh38 from UCSC/GATK bundle, GRCh37/hg19 similarly, T2T from marbl/CHM13). Put it outside the repo (e.g. /data/refs/hg38.fa). Run stage 01 once to build indexes.",
+      example: "/data/refs/hg38.fa",
+      note: "ClinVar, panel BED, SNPEFF_DB, and BCFTOOLS_PLOIDY must use the same genome build.",
     },
     clinvarVcf: {
       label: "CLINVAR_VCF",
-      help: "ClinVar VCF for the same genome build as REF_FASTA (NCBI FTP: vcf_GRCh38, vcf_GRCh37, …). Wrong build = wrong chromosome names/coordinates.",
       group: "reference",
+      kind: "file",
+      bundled: "test_case/refs/clinvar_panel_subset.vcf.gz (1 variant, in repo)",
+      what: "Path to ClinVar as a bgzip + tabix VCF. Pipeline joins it to add clinical significance (Pathogenic, Benign, …).",
+      where: "Real data: wget from NCBI FTP — vcf_GRCh38/clinvar.vcf.gz or vcf_GRCh37/ for hg19. Must match REF_FASTA build. Stage 01 runs tabix if the file exists.",
+      example: "/data/clinvar/clinvar_grch38.vcf.gz",
+      note: "Wrong build = chromosome names and positions won't match your calls.",
     },
     snpeffDb: {
       label: "SNPEFF_DB",
-      help: "snpEff database matching REF_FASTA (e.g. GRCh38.…, GRCh37.…). T2T/other builds depend on what snpEff/VEP provides; skipped if not installed.",
       group: "reference",
+      kind: "tool",
+      bundled: "Not installed by default — conda gives snpEff the program only, not annotation DBs",
+      what: "snpEff database name (not a file path). snpEff looks up this name in its own data/ folder to add gene symbols and consequences to VCFs.",
+      where: "After conda activate: snpEff databases (list), then snpEff download GRCh38.mane.1.2.ensembl — installs into snpEff's data/. Type the same name here. GRCh37: snpEff download GRCh37.75.",
+      example: "GRCh38.mane.1.2.ensembl",
+      note: "Optional. If not installed, stage 04 skips gene annotation; ClinVar still runs. Different from REF_FASTA — you don't point at a .fa file.",
     },
     bcftoolsPloidy: {
       label: "BCFTOOLS_PLOIDY",
-      help: "bcftools call --ploidy preset matching REF_FASTA (GRCh38, GRCh37, …). See bcftools call -l for available sets.",
       group: "reference",
+      kind: "tool",
+      bundled: "GRCh38 preset is built into bcftools — no download",
+      what: "bcftools call --ploidy preset — tells bcftools which human chromosome naming/ploidy model to use.",
+      where: "No file to download. Run bcftools call -l to list presets. GRCh38 with hg38, GRCh37 with hg19.",
+      example: "GRCh38",
     },
     panelGenes: {
       label: "PANEL_GENES",
-      help: "Plain-text gene list (one HGNC symbol per line). Swappable per clinical panel — see panels/README.md.",
       group: "panel",
+      kind: "file",
+      bundled: "panels/cardiomyopathy/cardiomyopathy_genes.txt (in repo)",
+      what: "Path to a plain-text gene list — one HGNC symbol per line (e.g. MYBPC3).",
+      where: "Demo uses shipped example. Real panel: you or your clinical team maintain this file.",
+      example: "panels/cardiomyopathy/cardiomyopathy_genes.txt",
     },
     panelBed: {
       label: "PANEL_BED",
-      help: "Panel region BED — coordinates must match REF_FASTA build (shipped example is GRCh38). Re-lift or re-annotate for other builds.",
       group: "panel",
+      kind: "file",
+      bundled: "panels/cardiomyopathy/cardiomyopathy_genes_grch38.bed (in repo, GRCh38 coords)",
+      what: "Path to a BED file of genomic regions for your panel genes (chrom, start, end).",
+      where: "Build from Ensembl BioMart or UCSC Table Browser. Coordinates must match REF_FASTA build.",
+      example: "panels/cardiomyopathy/cardiomyopathy_genes_grch38.bed",
     },
     panelName: {
       label: "PANEL_NAME",
-      help: "Human-readable panel label shown in HTML report titles.",
       group: "panel",
+      kind: "setting",
+      bundled: "Any label you like — demo uses Cardiomyopathy (demo)",
+      what: "Display name in HTML report titles — not a file.",
+      where: "Pick any short string for your study or panel.",
+      example: "Cardiomyopathy",
     },
     threads: {
       label: "THREADS",
-      help: "CPU threads for bwa, samtools, bcftools, and fastp.",
       group: "runtime",
+      kind: "setting",
+      bundled: "No default file — typical value 8 (demo uses 2)",
+      what: "CPU thread count for bwa, samtools, bcftools, fastp.",
+      where: "Set to available cores on your machine (8–32 typical).",
+      example: "8",
     },
     outDir: {
       label: "OUT_DIR",
-      help: "Directory for BAMs, VCFs, reports, and JSONL outputs.",
       group: "runtime",
+      kind: "setting",
+      bundled: "test_case/results (demo) — pipeline creates the folder",
+      what: "Output directory for BAMs, VCFs, reports, JSONL. You choose the path; pipeline creates it.",
+      where: "Any writable folder. Run from repo root or test_case/ — use relative or absolute paths consistently.",
+      example: "results",
     },
     tmpDir: {
       label: "TMP_DIR",
-      help: "Scratch directory for sorted BAMs and intermediate VCFs. Defaults to OUT_DIR/tmp.",
       group: "runtime",
+      kind: "setting",
+      bundled: "Defaults to OUT_DIR/tmp",
+      what: "Scratch space for sorted BAMs and intermediate VCFs during a run.",
+      where: "Fast local disk recommended for large WGS. Pipeline creates it if missing.",
+      example: "results/tmp",
     },
     sampleId: {
       label: "SAMPLE_ID",
-      help: "Sample identifier used in output filenames and read-group headers.",
       group: "sample",
+      kind: "setting",
+      bundled: "case1 in demo",
+      what: "Sample identifier — used in output filenames and BAM read groups.",
+      where: "Match your LIMS / manifest naming.",
+      example: "case1",
     },
     sampleType: {
       label: "SAMPLE_TYPE",
-      help: "case or control — tags pathogenic JSONL for cohort aggregation.",
       group: "sample",
+      kind: "setting",
+      bundled: "case or control",
+      what: "case = sample of interest; control = comparison — tags JSONL for cohort aggregation.",
+      where: "Per-sample when running stages individually; manifest column for full cohort runs.",
       type: "select",
       options: ["case", "control"],
     },
     r1Fastq: {
       label: "R1 FASTQ",
-      help: "Forward reads: .fastq, .fastq.gz, .fq, or .fq.gz. Extension auto-resolved if omitted.",
       group: "sample",
+      kind: "file",
+      bundled: "test_case/fastq/case1_R1.fastq.gz (synthetic, in repo)",
+      what: "Path to forward (R1) paired-end reads from the sequencer.",
+      where: "Real data: your instrument or demultiplexing output. .fastq or .fastq.gz.",
+      example: "/data/fastq/sample_R1.fastq.gz",
     },
     r2Fastq: {
       label: "R2 FASTQ",
-      help: "Reverse reads: same format rules as R1. Pipeline accepts plain or gzip without manual unpack.",
       group: "sample",
+      kind: "file",
+      bundled: "test_case/fastq/case1_R2.fastq.gz (synthetic, in repo)",
+      what: "Path to reverse (R2) paired-end reads — mate of R1.",
+      where: "Same rules as R1.",
+      example: "/data/fastq/sample_R2.fastq.gz",
     },
     caller: {
       label: "CALLER",
-      help: "Which hard-filtered VCF to annotate: bcftools (primary) or gatk (secondary).",
       group: "sample",
+      kind: "setting",
+      bundled: "bcftools (primary); gatk also always produced in stage 03",
+      what: "Which hard-filtered VCF from stage 03 to annotate — both callers always run.",
+      where: "bcftools = fast primary. gatk = GATK4 cross-check.",
       type: "select",
       options: ["bcftools", "gatk"],
     },
     manifest: {
       label: "MANIFEST_TSV",
-      help: "Tab-separated cohort file: sample_id, case|control, R1 path, R2 path (fastq or fastq.gz).",
       group: "cohort",
+      kind: "create",
+      bundled: "test_case/samples.tsv (in repo)",
+      what: "Path to a tab-separated cohort table you create: sample_id, case|control, R1 path, R2 path.",
+      where: "Copy test_case/samples.tsv as a template. One row per sample. Used by run_pipeline.sh.",
+      example: "samples.tsv",
     },
   };
 
@@ -118,12 +190,22 @@
     cohort: "Cohort manifest",
   };
 
+  const GROUP_INTROS = {
+    reference:
+      "Reference build assets. Mix of file paths (you download) and tool names (snpEff/bcftools look up internally). All must match the same genome assembly. See Getting started if unsure which is which.",
+    panel:
+      "Gene panel files (paths in the repo for the demo). Swap for your own panel — no pipeline code changes.",
+    runtime: "Where outputs go and how much CPU to use. Pipeline creates OUT_DIR/TMP_DIR if missing.",
+    sample: "Per-sample paths and IDs when running one sample at a time. Paths are on your machine.",
+    cohort: "Batch manifest you write when running the full pipeline over many samples.",
+  };
+
   const STAGES = [
     {
       id: "setup",
       num: "0",
       title: "Environment setup",
-      desc: "Create the conda environment once. Includes bwa, samtools, bcftools, GATK4, snpEff, fastp.",
+      desc: "Run once per machine. Installs programs (bwa, bcftools, snpEff tool, …) — not reference FASTAs, ClinVar, or snpEff databases. Clone the repo first; see Getting started.",
       vars: [],
       file: null,
       runName: "setup.sh",
@@ -132,7 +214,7 @@
       id: "config",
       num: "00",
       title: "Shared configuration",
-      desc: "All pipeline scripts source 00_config.sh. Defaults below are substituted into the script view.",
+      desc: "All scripts source 00_config.sh. Paths point at files on your machine; SNPEFF_DB is a tool name, not a path. Run from repo root (or export absolute paths). Demo: cd test_case && ./run_demo.sh sets these automatically.",
       vars: ["refFasta", "clinvarVcf", "snpeffDb", "bcftoolsPloidy", "panelGenes", "panelBed", "panelName", "threads", "outDir", "tmpDir"],
       file: "00_config.sh",
       personalize: "config",
@@ -344,10 +426,34 @@ export TMP_DIR="${s.tmpDir}"`;
     return raw;
   }
 
+  function appendHelpLine(parent, label, text) {
+    const p = document.createElement("p");
+    const strong = document.createElement("span");
+    strong.className = "help-label";
+    strong.textContent = label + ": ";
+    p.appendChild(strong);
+    p.appendChild(document.createTextNode(text));
+    parent.appendChild(p);
+  }
+
+  function buildHelpBlock(meta) {
+    const block = document.createElement("div");
+    block.className = "help-block";
+    if (meta.kind && KIND_LABELS[meta.kind]) {
+      appendHelpLine(block, "Kind", KIND_LABELS[meta.kind]);
+    }
+    if (meta.bundled) appendHelpLine(block, "Demo default", meta.bundled);
+    if (meta.what) appendHelpLine(block, "What", meta.what);
+    if (meta.where) appendHelpLine(block, "Real data — where/how", meta.where);
+    if (meta.example) appendHelpLine(block, "Example value", meta.example);
+    if (meta.note) appendHelpLine(block, "Note", meta.note);
+    return block;
+  }
+
   function buildVarField(key) {
     const meta = VAR_META[key];
     const div = document.createElement("div");
-    div.className = "field" + (["manifest", "refFasta", "r1Fastq", "r2Fastq", "panelGenes"].includes(key) ? " field-full" : "");
+    div.className = "field field-full";
 
     const label = document.createElement("label");
     const isFirst = !renderedVarKeys.has(key);
@@ -375,11 +481,7 @@ export TMP_DIR="${s.tmpDir}"`;
     }
     input.value = settings[key] ?? "";
 
-    const help = document.createElement("span");
-    help.className = "help";
-    help.textContent = meta.help;
-
-    label.appendChild(help);
+    label.appendChild(buildHelpBlock(meta));
     div.appendChild(label);
     div.appendChild(input);
     renderedVarKeys.add(key);
@@ -416,6 +518,12 @@ export TMP_DIR="${s.tmpDir}"`;
       title.className = "var-group-title";
       title.textContent = GROUP_TITLES[g] || g;
       wrap.appendChild(title);
+      if (GROUP_INTROS[g]) {
+        const intro = document.createElement("p");
+        intro.className = "var-group-intro";
+        intro.textContent = GROUP_INTROS[g];
+        wrap.appendChild(intro);
+      }
       const fields = document.createElement("div");
       fields.className = "var-fields";
       groups[g].forEach((key) => fields.appendChild(buildVarField(key)));
@@ -678,6 +786,8 @@ export TMP_DIR="${s.tmpDir}"`;
 
   const NAV_ITEMS = [
     { href: "#overview", label: "Overview" },
+    { href: "#getting-started", label: "Getting started" },
+    { href: "#inputs-guide", label: "Inputs" },
     ...STAGES.map((s) => ({ href: "#stage-" + s.id, label: s.num + " " + s.title })),
     { href: "#roadmap", label: "Roadmap" },
   ];
