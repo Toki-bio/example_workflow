@@ -45,8 +45,9 @@ Note: if `snpEff` isn't installed (or has no database for the custom demo contig
 pipeline automatically falls back to ClinVar-only annotation — the pathogenic call and
 case/control comparison still work correctly, but the report's gene-symbol/consequence/impact
 columns and the "PANEL" badge will be blank for the demo (they rely on snpEff's gene
-annotation). Install snpEff's `GRCh38.mane.1.2.ensembl` database and use the real hg38
-reference for full gene-level annotation on real data.
+annotation). Install a snpEff database matching your reference build (demo uses
+`GRCh38.mane.1.2.ensembl`) and point `REF_FASTA` at the same assembly for full gene-level
+annotation on real data.
 
 ## Why this is safe to share
 

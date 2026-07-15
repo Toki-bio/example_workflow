@@ -62,6 +62,24 @@ flowchart LR
 5. **TSV/CSV** — sample manifests, phenotype/clinical metadata, frequency tables — the
    "spreadsheet glue" that ties sample IDs to everything else.
 
+## 2a. Reference genome builds (not locked to GRCh38)
+
+The pipeline is **not** tied to hg38/GRCh38. Point `REF_FASTA` at any suitable assembly FASTA
+(GRCh37/hg19, GRCh38/hg38, T2T-CHM13 v2, etc.) and align/call against it. What *is*
+build-specific and must stay consistent:
+
+| Setting | Must match `REF_FASTA` build |
+|---|---|
+| `CLINVAR_VCF` | ClinVar release for that build (NCBI FTP: `vcf_GRCh37`, `vcf_GRCh38`, …) |
+| `PANEL_BED` / panel coordinates | Liftover or re-annotation if you change builds |
+| `SNPEFF_DB` / VEP cache | Database for that assembly |
+| `BCFTOOLS_PLOIDY` | bcftools preset (`GRCh37`, `GRCh38`, … — run `bcftools call -l`) |
+
+The **shipped demo** (`test_case/`) intentionally uses a GRCh38 slice because that matches the
+original case study — it is an example, not a platform limitation. T2T and other non-GRCh
+assemblies may need extra tool support (e.g. snpEff/VEP availability, contig naming) beyond
+what the demo exercises.
+
 ## 3. Array/genotyping-side formats (roadmap — not implemented in this repo yet)
 
 1. **IDAT (Illumina)** / **CEL (Affymetrix)** — raw, vendor-specific binary output of a

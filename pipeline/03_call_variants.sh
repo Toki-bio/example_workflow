@@ -21,7 +21,7 @@ fi
 # --- Primary caller: bcftools ---
 log "[$sample_id] bcftools mpileup + call"
 bcftools mpileup -f "$REF_FASTA" --threads "$THREADS" -a AD,DP -Ou "$bam" \
-  | bcftools call -mv --ploidy GRCh38 -Oz -o "$OUT_DIR/${sample_id}.bcftools.vcf.gz"
+  | bcftools call -mv --ploidy "${BCFTOOLS_PLOIDY}" -Oz -o "$OUT_DIR/${sample_id}.bcftools.vcf.gz"
 tabix -f -p vcf "$OUT_DIR/${sample_id}.bcftools.vcf.gz"
 
 log "[$sample_id] bcftools hard filter -> PASS-only"

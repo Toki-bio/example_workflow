@@ -4,9 +4,10 @@
 
 set -euo pipefail
 
-: "${REF_FASTA:=$PWD/refs/hg38_panel.fa}"          # reference FASTA (whole genome, or panel-restricted for the demo)
-: "${CLINVAR_VCF:=$PWD/refs/clinvar_grch38.vcf.gz}" # public ClinVar VCF, GRCh38
-: "${SNPEFF_DB:=GRCh38.mane.1.2.ensembl}"           # snpEff database name
+: "${REF_FASTA:=$PWD/refs/hg38_panel.fa}"          # reference FASTA — any build (GRCh37, GRCh38, T2T, …); demo default below
+: "${CLINVAR_VCF:=$PWD/refs/clinvar_grch38.vcf.gz}" # ClinVar VCF — must match REF_FASTA genome build
+: "${SNPEFF_DB:=GRCh38.mane.1.2.ensembl}"           # snpEff DB name — must match REF_FASTA build
+: "${BCFTOOLS_PLOIDY:=GRCh38}"                       # bcftools call --ploidy set (e.g. GRCh37, GRCh38)
 
 # Panel selection: swap these two paths (and PANEL_NAME below) to point this same pipeline at a
 # different clinical/research gene panel -- see panels/README.md. Cardiomyopathy is just the

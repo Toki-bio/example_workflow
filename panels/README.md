@@ -23,7 +23,7 @@ Each panel lives in its own subdirectory:
 panels/
   <panel_name>/
     <panel_name>_genes.txt        # one gene symbol per line
-    <panel_name>_grch38.bed       # matching GRCh38 coordinates (chrom, start, end, gene, source)
+    <panel_name>_regions.bed       # coordinates for that build (e.g. _grch38.bed, _grch37.bed)
     README.md                     # provenance/notes specific to this panel
 ```
 
@@ -31,8 +31,9 @@ panels/
 
 1. Create `panels/<your_panel_name>/`.
 2. Add a plain-text gene list (one HGNC gene symbol per line).
-3. Add a BED file with GRCh38 coordinates for those genes (verify against a current Ensembl/NCBI
-   annotation release — coordinates drift between genome annotation versions).
+3. Add a BED file with coordinates for those genes **on the same assembly as your `REF_FASTA`**
+   (verify against a current Ensembl/NCBI annotation for that build — coordinates differ between
+   GRCh37, GRCh38, T2T, etc.).
 4. Point `PANEL_GENES` and `PANEL_BED` (see
    [`pipeline/00_config.sh`](../pipeline/00_config.sh)) at your new files, either by exporting the
    environment variables before running the pipeline, or by editing the defaults.

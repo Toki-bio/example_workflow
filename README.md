@@ -64,11 +64,13 @@ no FPGA or license required. See [`test_case/README.md`](test_case/README.md) fo
 ## Running on real data, or with a different panel
 
 ```bash
-export REF_FASTA=/path/to/hg38.fa
-export CLINVAR_VCF=/path/to/clinvar_grch38.vcf.gz   # https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/
-export PANEL_GENES=/path/to/your_panel_genes.txt    # defaults to panels/cardiomyopathy/...
-export PANEL_BED=/path/to/your_panel_grch38.bed
+export REF_FASTA=/path/to/reference.fa          # GRCh37/hg19, GRCh38/hg38, T2T-CHM13, etc.
+export CLINVAR_VCF=/path/to/clinvar.vcf.gz      # same build as REF_FASTA (NCBI: vcf_GRCh38, vcf_GRCh37, …)
+export BCFTOOLS_PLOIDY=GRCh38                   # or GRCh37 — must match REF_FASTA
+export PANEL_GENES=/path/to/your_panel_genes.txt
+export PANEL_BED=/path/to/your_panel.bed        # coordinates must match REF_FASTA build
 export PANEL_NAME="Your Panel Name"
+export SNPEFF_DB=GRCh38.mane.1.2.ensembl      # snpEff DB for your build
 pipeline/run_pipeline.sh my_cohort_manifest.tsv
 ```
 
@@ -83,7 +85,12 @@ to define a new panel — no pipeline code changes needed.
   PLINK → imputation) is documented as a design in
   [`docs/DATA_TYPES_AND_WORKFLOWS.md`](docs/DATA_TYPES_AND_WORKFLOWS.md) but not yet built here.
 - No equivalent to DRAGEN's proprietary pangenome graph-reference mode is provided (linear
-  GRCh38 only) — see `docs/DRAGEN_TO_OSS_MAPPING.md`.
+  reference only — any build you configure via `REF_FASTA`, not pangenome graphs) — see
+  `docs/DRAGEN_TO_OSS_MAPPING.md`.
+- **Build consistency:** `REF_FASTA`, ClinVar VCF, panel BED, `SNPEFF_DB`, and `BCFTOOLS_PLOIDY`
+  must all refer to the same genome assembly (e.g. all GRCh38 or all GRCh37). The shipped demo
+  uses GRCh38; switching to GRCh37 or T2T means updating every coordinate-dependent resource, not
+  just the FASTA.
 - Exact variant calls and QC metrics will differ slightly from DRAGEN's output, as expected
   when comparing any two independently-implemented aligners/callers. Cross-validation against
   an original DRAGEN pipeline's pathogenic-variant calls on real samples (kept on the source

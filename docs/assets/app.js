@@ -11,6 +11,7 @@
     panelBed: "panels/cardiomyopathy/cardiomyopathy_genes_grch38.bed",
     panelName: "Cardiomyopathy (demo)",
     snpeffDb: "GRCh38.mane.1.2.ensembl",
+    bcftoolsPloidy: "GRCh38",
     sampleId: "case1",
     sampleType: "case",
     r1Fastq: "test_case/fastq/case1_R1.fastq.gz",
@@ -25,17 +26,22 @@
   const VAR_META = {
     refFasta: {
       label: "REF_FASTA",
-      help: "Reference genome FASTA. Whole hg38 for real WGS, or a panel-restricted mini-genome for the demo.",
+      help: "Reference FASTA for alignment and calling — any build (GRCh37/hg19, GRCh38/hg38, T2T-CHM13, custom). ClinVar, panel BED, snpEff DB, and BCFTOOLS_PLOIDY must match the same build.",
       group: "reference",
     },
     clinvarVcf: {
       label: "CLINVAR_VCF",
-      help: "Public ClinVar VCF (GRCh38, bgzip + tabix). Used for clinical significance in stages 04–07.",
+      help: "ClinVar VCF for the same genome build as REF_FASTA (NCBI FTP: vcf_GRCh38, vcf_GRCh37, …). Wrong build = wrong chromosome names/coordinates.",
       group: "reference",
     },
     snpeffDb: {
       label: "SNPEFF_DB",
-      help: "snpEff database name for gene/consequence annotation. Skipped automatically if not installed.",
+      help: "snpEff database matching REF_FASTA (e.g. GRCh38.…, GRCh37.…). T2T/other builds depend on what snpEff/VEP provides; skipped if not installed.",
+      group: "reference",
+    },
+    bcftoolsPloidy: {
+      label: "BCFTOOLS_PLOIDY",
+      help: "bcftools call --ploidy preset matching REF_FASTA (GRCh38, GRCh37, …). See bcftools call -l for available sets.",
       group: "reference",
     },
     panelGenes: {
@@ -45,7 +51,7 @@
     },
     panelBed: {
       label: "PANEL_BED",
-      help: "BED file with GRCh38 coordinates for panel genes. Used for region-focused analysis.",
+      help: "Panel region BED — coordinates must match REF_FASTA build (shipped example is GRCh38). Re-lift or re-annotate for other builds.",
       group: "panel",
     },
     panelName: {
@@ -127,7 +133,7 @@
       num: "00",
       title: "Shared configuration",
       desc: "All pipeline scripts source 00_config.sh. Defaults below are substituted into the script view.",
-      vars: ["refFasta", "clinvarVcf", "snpeffDb", "panelGenes", "panelBed", "panelName", "threads", "outDir", "tmpDir"],
+      vars: ["refFasta", "clinvarVcf", "snpeffDb", "bcftoolsPloidy", "panelGenes", "panelBed", "panelName", "threads", "outDir", "tmpDir"],
       file: "00_config.sh",
       personalize: "config",
       runName: "00_config.sh",
@@ -137,7 +143,7 @@
       num: "01",
       title: "Prepare reference",
       desc: "Build BWA index, samtools .fai, GATK dict, and tabix-index ClinVar. Run once per reference.",
-      vars: ["refFasta", "clinvarVcf", "threads", "outDir", "tmpDir"],
+      vars: ["refFasta", "clinvarVcf", "snpeffDb", "bcftoolsPloidy", "threads", "outDir", "tmpDir"],
       file: "01_prepare_reference.sh",
       runName: "01_prepare_reference.sh",
     },
@@ -155,7 +161,7 @@
       num: "03",
       title: "Call variants",
       desc: "bcftools mpileup+call (primary) and GATK4 HaplotypeCaller (secondary). Both hard-filtered to PASS.",
-      vars: ["sampleId", "refFasta", "threads", "outDir", "tmpDir"],
+      vars: ["sampleId", "refFasta", "bcftoolsPloidy", "threads", "outDir", "tmpDir"],
       file: "03_call_variants.sh",
       runName: "03_call_variants.sh",
     },
@@ -272,6 +278,7 @@ export PANEL_GENES="${s.panelGenes}"
 export PANEL_BED="${s.panelBed}"
 export PANEL_NAME="${s.panelName}"
 export SNPEFF_DB="${s.snpeffDb}"
+export BCFTOOLS_PLOIDY="${s.bcftoolsPloidy}"
 export THREADS=${s.threads}
 export OUT_DIR="${s.outDir}"
 export TMP_DIR="${s.tmpDir}"`;
@@ -284,6 +291,7 @@ export TMP_DIR="${s.tmpDir}"`;
       REF_FASTA: s.refFasta,
       CLINVAR_VCF: s.clinvarVcf,
       SNPEFF_DB: s.snpeffDb,
+      BCFTOOLS_PLOIDY: s.bcftoolsPloidy,
       PANEL_BED: s.panelBed,
       PANEL_GENES: s.panelGenes,
       PANEL_NAME: s.panelName,
