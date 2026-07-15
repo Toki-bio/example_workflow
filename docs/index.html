@@ -3,407 +3,86 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Variant pipeline — interactive guide</title>
+  <title>Variant pipeline — step-by-step guide</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 </head>
 <body>
 
 <nav class="site-nav">
-  <a class="brand" href="#top">example_workflow</a>
-  <a href="#overview">Overview</a>
-  <a href="#quickstart">Quickstart</a>
-  <a href="#settings">Settings</a>
-  <a href="#walkthrough">Walkthrough</a>
-  <a href="#full-run">Full run</a>
-  <a href="#roadmap">Roadmap</a>
-  <a href="https://github.com/Toki-bio/example_workflow">GitHub</a>
+  <a class="brand" href="#top">example_workflow — read top to bottom</a>
+  <div class="steps" id="nav-steps"></div>
 </nav>
 
 <main id="top">
-  <section id="intro">
-    <h1>Germline variant-calling pipeline — interactive guide</h1>
-    <p class="lead">
-      Step-by-step walkthrough of the CPU-only, open-source sequencing pipeline in this repository.
-      Adjust the <a href="#settings">settings panel</a> below and every command block updates live —
-      copy and paste into your terminal for real runs or re-runs with different paths, panels, and samples.
-    </p>
-    <p class="hint">
-      Deep reading: <a href="DATA_TYPES_AND_WORKFLOWS.md">DATA_TYPES_AND_WORKFLOWS.md</a>,
-      <a href="DRAGEN_TO_OSS_MAPPING.md">DRAGEN → OSS mapping</a>,
-      <a href="ORIGINAL_DRAGEN_PIPELINE.md">original DRAGEN case study</a>.
-    </p>
-  </section>
+  <h1>Germline variant-calling pipeline</h1>
+  <p class="lead">
+    Read this page from top to bottom. Each stage shows the variables it uses (with short explanations),
+    how to run it, and the full script in an editable window. Change any variable — every unlocked script
+    and run command updates immediately. Accepts <code>.fastq</code> and <code>.fastq.gz</code> inputs.
+  </p>
 
-  <section id="overview">
-    <h2>Overview — data types and workflows</h2>
+  <div class="global-toolbar">
+    <button type="button" class="btn" id="export-all">Export all scripts (.zip)</button>
+    <button type="button" class="btn btn-secondary" id="load-demo">Load demo paths</button>
+    <button type="button" class="btn btn-secondary" id="reset-all">Reset all settings</button>
+  </div>
+
+  <section class="overview-compact" id="overview">
+    <h2>Overview</h2>
     <p>
-      Genomic analysis starts from one of two measurement types. Both converge on <strong>VCF</strong>
-      for downstream annotation and reporting.
+      Sequencing data (FASTQ → BAM → VCF) and array data (IDAT → PLINK → VCF) both converge at VCF
+      for annotation and reporting. This repo implements the <strong>sequencing / clinical panel</strong> path.
     </p>
-
     <div class="mermaid-wrap">
       <pre class="mermaid">
-flowchart LR
-    subgraph seq ["Sequencing data"]
-        FASTQ --> BAMCRAM["BAM / CRAM"] --> VCF1[VCF]
-    end
-    subgraph arr ["Array / genotyping — roadmap"]
-        IDATCEL["IDAT / CEL"] --> PLINKfmt["PLINK BED/BIM/FAM"] --> Imputation --> VCF2[VCF]
-    end
-    VCF1 --> Converge["Annotation + reporting"]
-    VCF2 --> Converge
-    Converge --> Goals["Clinical panel · Population frequency · WGS · PRS/GWAS · Pharmacogenomics"]
+flowchart TB
+    FASTQ["FASTQ or FASTQ.GZ"] --> Align["02 align"]
+    Align --> Call["03 call variants"]
+    Call --> Annotate["04 annotate"]
+    Annotate --> Filter["05 filter pathogenic"]
+    Filter --> Report["07 HTML report"]
+    Filter --> Aggregate["06 cohort aggregate"]
       </pre>
     </div>
-
-    <h3>Two data universes</h3>
     <table>
-      <thead>
-        <tr><th></th><th>Sequencing</th><th>Array / genotyping</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Raw output</td>
-          <td>FASTQ reads → BAM/CRAM → VCF</td>
-          <td>IDAT/CEL → PLINK → (imputed) VCF</td>
-        </tr>
-        <tr>
-          <td>Finds novel variants?</td>
-          <td>Yes</td>
-          <td>No — fixed marker set only</td>
-        </tr>
-        <tr>
-          <td>Typical use</td>
-          <td>Clinical panels, WGS, discovery</td>
-          <td>Large cohorts, PRS, population frequency</td>
-        </tr>
-        <tr>
-          <td>In this repo</td>
-          <td><span class="tag-implemented">Implemented</span></td>
-          <td><span class="tag-roadmap">Roadmap</span></td>
-        </tr>
-      </tbody>
+      <tr><th>Tool family</th><th>Input</th><th>Role</th></tr>
+      <tr><td>bwa + samtools</td><td>FASTQ</td><td>Align, sort, mark duplicates</td></tr>
+      <tr><td>bcftools / GATK4</td><td>BAM</td><td>Variant calling</td></tr>
+      <tr><td>snpEff + ClinVar</td><td>VCF</td><td>Annotation</td></tr>
+      <tr><td>PLINK</td><td>Array genotypes</td><td>Different path — roadmap</td></tr>
     </table>
-
-    <h3>Tool landscape</h3>
-    <table>
-      <thead>
-        <tr><th>Tool</th><th>Data</th><th>Role</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><strong>DRAGEN</strong></td><td>FASTQ</td><td>FPGA align + call + annotate (licensed)</td></tr>
-        <tr><td><strong>bwa + samtools</strong></td><td>FASTQ</td><td>Open-source align, sort, QC</td></tr>
-        <tr><td><strong>bcftools / GATK4</strong></td><td>BAM → VCF</td><td>Variant calling (this pipeline uses both)</td></tr>
-        <tr><td><strong>snpEff / VEP + ClinVar</strong></td><td>VCF</td><td>Gene/consequence + clinical significance</td></tr>
-        <tr><td><strong>PLINK</strong></td><td>Array genotypes</td><td>QC, stats, format conversion — different tool family</td></tr>
-      </tbody>
-    </table>
-
-    <h3>Goal / tier matrix</h3>
-    <table>
-      <thead>
-        <tr><th>Goal</th><th>Typical input</th><th>Tool chain</th><th>Status here</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Clinical gene panel</td>
-          <td>FASTQ</td>
-          <td>bwa → samtools → bcftools/GATK → annotate → report</td>
-          <td><span class="tag-implemented">Implemented</span></td>
-        </tr>
-        <tr>
-          <td>Population frequency / SNP atlas</td>
-          <td>IDAT → PLINK</td>
-          <td>Genotyping → imputation → frequency tables</td>
-          <td><span class="tag-roadmap">Roadmap</span></td>
-        </tr>
-        <tr>
-          <td>Full WGS</td>
-          <td>FASTQ/CRAM</td>
-          <td>Same as panel, without region restriction</td>
-          <td><span class="tag-implemented">Same pipeline</span></td>
-        </tr>
-        <tr>
-          <td>PRS / GWAS</td>
-          <td>PLINK BED/BIM/FAM</td>
-          <td>PLINK association / PRS tools</td>
-          <td><span class="tag-roadmap">Roadmap</span></td>
-        </tr>
-        <tr>
-          <td>Pharmacogenomics</td>
-          <td>VCF subset</td>
-          <td>CPIC / PharmGKB lookup</td>
-          <td><span class="tag-roadmap">Roadmap</span></td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section id="quickstart">
-    <h2>Quickstart — synthetic demo</h2>
-    <p>
-      The fastest way to see the pipeline end-to-end: a 2-sample synthetic demo (no real patient data).
-      These commands are fixed — not tied to the settings panel.
-    </p>
-    <div class="code-block">
-      <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-      <pre><code>conda env create -f envs/environment.yml
-conda activate variant-pipeline
-
-cd test_case
-./run_demo.sh
-python check_demo.py results</code></pre>
-    </div>
     <p class="hint">
-      Expected: <code>case1.report.html</code> shows one Pathogenic MYBPC3 hit; <code>control1</code> does not.
-      See <a href="https://github.com/Toki-bio/example_workflow/tree/main/test_case">test_case/README.md</a> on GitHub.
+      Quick synthetic demo (fixed commands):
+      <code>conda activate variant-pipeline && cd test_case && ./run_demo.sh</code>
+      · More docs:
+      <a href="DATA_TYPES_AND_WORKFLOWS.md">data types</a>,
+      <a href="DRAGEN_TO_OSS_MAPPING.md">DRAGEN mapping</a>
     </p>
   </section>
 
-  <section id="settings">
-    <h2>Settings — adjust parameters</h2>
-    <p>
-      Edit any field below. All walkthrough command blocks update immediately. Values are saved in
-      your browser (<code>localStorage</code>) so they persist across visits.
-    </p>
-    <div class="card">
-      <div class="settings-grid">
-        <div class="field">
-          <label for="refFasta">REF_FASTA</label>
-          <input type="text" id="refFasta" data-setting="refFasta" placeholder="path/to/reference.fa">
-        </div>
-        <div class="field">
-          <label for="clinvarVcf">CLINVAR_VCF</label>
-          <input type="text" id="clinvarVcf" data-setting="clinvarVcf">
-        </div>
-        <div class="field">
-          <label for="panelGenes">PANEL_GENES</label>
-          <input type="text" id="panelGenes" data-setting="panelGenes">
-        </div>
-        <div class="field">
-          <label for="panelBed">PANEL_BED</label>
-          <input type="text" id="panelBed" data-setting="panelBed">
-        </div>
-        <div class="field">
-          <label for="panelName">PANEL_NAME</label>
-          <input type="text" id="panelName" data-setting="panelName">
-        </div>
-        <div class="field">
-          <label for="snpeffDb">SNPEFF_DB</label>
-          <input type="text" id="snpeffDb" data-setting="snpeffDb">
-        </div>
-        <div class="field">
-          <label for="sampleId">Sample ID</label>
-          <input type="text" id="sampleId" data-setting="sampleId">
-        </div>
-        <div class="field">
-          <label for="sampleType">Sample type</label>
-          <select id="sampleType" data-setting="sampleType">
-            <option value="case">case</option>
-            <option value="control">control</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="r1Fastq">R1 FASTQ</label>
-          <input type="text" id="r1Fastq" data-setting="r1Fastq">
-        </div>
-        <div class="field">
-          <label for="r2Fastq">R2 FASTQ</label>
-          <input type="text" id="r2Fastq" data-setting="r2Fastq">
-        </div>
-        <div class="field">
-          <label for="threads">THREADS</label>
-          <input type="text" id="threads" data-setting="threads">
-        </div>
-        <div class="field">
-          <label for="outDir">OUT_DIR</label>
-          <input type="text" id="outDir" data-setting="outDir">
-        </div>
-        <div class="field">
-          <label for="tmpDir">TMP_DIR</label>
-          <input type="text" id="tmpDir" data-setting="tmpDir">
-        </div>
-        <div class="field">
-          <label for="manifest">Manifest TSV</label>
-          <input type="text" id="manifest" data-setting="manifest">
-        </div>
-        <div class="field">
-          <label for="caller">Annotation caller</label>
-          <select id="caller" data-setting="caller">
-            <option value="bcftools">bcftools (primary)</option>
-            <option value="gatk">gatk (secondary)</option>
-          </select>
-        </div>
-      </div>
-      <div class="settings-actions">
-        <button type="button" class="btn btn-secondary" id="reset-settings">Reset to defaults</button>
-        <button type="button" class="btn" id="demo-settings">Load demo paths</button>
-      </div>
-    </div>
-  </section>
+  <h2>Pipeline stages</h2>
+  <p class="section-note">
+    Variables repeat at each stage where they apply, so you always see context in logical order.
+    Duplicate fields stay in sync. Lock a script after manual edits to prevent overwrites.
+  </p>
 
-  <section id="walkthrough">
-    <h2>Walkthrough — stage by stage</h2>
-    <p>
-      Run stages in order for a single sample, or skip to <a href="#full-run">full cohort run</a>.
-      Each block includes the shared <code>export</code> lines your scripts read from
-      <a href="https://github.com/Toki-bio/example_workflow/blob/main/pipeline/00_config.sh"><code>pipeline/00_config.sh</code></a>.
-    </p>
-
-    <div class="card" id="stage-setup">
-      <div class="card-header">
-        <span class="stage-badge">Setup</span>
-        <h3>Environment</h3>
-      </div>
-      <p>Create the conda environment once. Includes bwa, samtools, bcftools, GATK4, snpEff, fastp.</p>
-      <div class="code-block">
-        <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-        <pre><code id="code-setup"></code></pre>
-      </div>
-    </div>
-
-    <div class="card" id="stage-01">
-      <div class="card-header">
-        <span class="stage-badge">01</span>
-        <h3>Prepare reference</h3>
-      </div>
-      <p>
-        Build BWA index, samtools <code>.fai</code>, GATK sequence dictionary, and tabix-index the
-        ClinVar VCF. Run once per reference FASTA — skipped on subsequent runs if indexes exist.
-      </p>
-      <div class="code-block">
-        <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-        <pre><code id="code-prepare"></code></pre>
-      </div>
-    </div>
-
-    <div class="card" id="stage-02">
-      <div class="card-header">
-        <span class="stage-badge">02</span>
-        <h3>Align reads</h3>
-      </div>
-      <p>
-        <code>fastp</code> QC/trim → <code>bwa mem</code> alignment → <code>samtools sort</code> →
-        <code>samtools markdup</code> → index. Output: <code>{sample}.markdup.bam</code>.
-      </p>
-      <div class="code-block">
-        <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-        <pre><code id="code-align"></code></pre>
-      </div>
-    </div>
-
-    <div class="card" id="stage-03">
-      <div class="card-header">
-        <span class="stage-badge">03</span>
-        <h3>Call variants</h3>
-      </div>
-      <p>
-        Two independent callers: <strong>bcftools</strong> (primary, pileup-based) and
-        <strong>GATK4 HaplotypeCaller</strong> (secondary, local re-assembly). Both produce
-        hard-filtered PASS-only VCFs.
-      </p>
-      <div class="code-block">
-        <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-        <pre><code id="code-call"></code></pre>
-      </div>
-    </div>
-
-    <div class="card" id="stage-04">
-      <div class="card-header">
-        <span class="stage-badge">04</span>
-        <h3>Annotate variants</h3>
-      </div>
-      <p>
-        snpEff gene/consequence (if database installed) + ClinVar clinical significance via
-        <code>bcftools annotate</code>. Optional Ensembl VEP cross-check if <code>vep</code> is on PATH.
-      </p>
-      <div class="code-block">
-        <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-        <pre><code id="code-annotate"></code></pre>
-      </div>
-    </div>
-
-    <div class="card" id="stage-05">
-      <div class="card-header">
-        <span class="stage-badge">05</span>
-        <h3>Filter pathogenic calls</h3>
-      </div>
-      <p>
-        Extract ClinVar Pathogenic / Likely pathogenic variants into per-sample JSONL, tagged with
-        case or control type for cohort aggregation.
-      </p>
-      <div class="code-block">
-        <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-        <pre><code id="code-filter"></code></pre>
-      </div>
-    </div>
-
-    <div class="card" id="stage-07">
-      <div class="card-header">
-        <span class="stage-badge">07</span>
-        <h3>Generate HTML report</h3>
-      </div>
-      <p>
-        Self-contained interactive HTML report: pathogenic/VUS calls, panel-gene highlights,
-        sortable/filterable table. Panel name appears in the report title.
-      </p>
-      <div class="code-block">
-        <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-        <pre><code id="code-report"></code></pre>
-      </div>
-    </div>
-
-    <div class="card" id="stage-06">
-      <div class="card-header">
-        <span class="stage-badge">06</span>
-        <h3>Aggregate cohort (after all samples)</h3>
-      </div>
-      <p>
-        Group pathogenic calls across all samples: count how many case vs control samples carry
-        each variant. Run once after every sample has completed stage 05.
-      </p>
-      <div class="code-block">
-        <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-        <pre><code id="code-aggregate"></code></pre>
-      </div>
-    </div>
-  </section>
-
-  <section id="full-run">
-    <h2>Full cohort run</h2>
-    <p>
-      <code>run_pipeline.sh</code> runs stages 01–07 for every row in a tab-separated manifest,
-      then aggregates pathogenic calls. Equivalent to running the walkthrough stages in a loop.
-    </p>
-    <div class="code-block">
-      <button type="button" class="copy-btn" aria-label="Copy">Copy</button>
-      <pre><code id="code-fullrun"></code></pre>
-    </div>
-    <p class="hint">Manifest columns: <code>sample_id &nbsp; case|control &nbsp; R1.fastq.gz &nbsp; R2.fastq.gz</code></p>
-  </section>
+  <div id="pipeline-stages"></div>
 
   <section id="roadmap">
-    <h2>Roadmap and limitations</h2>
+    <h2>Roadmap</h2>
     <ul class="compact">
-      <li><span class="tag-roadmap">Roadmap:</span> Array/genotyping path (IDAT/CEL → PLINK → imputation → VCF)</li>
-      <li><span class="tag-roadmap">Roadmap:</span> Pluggable alternate callers (e.g. DeepVariant) via config</li>
-      <li><span class="tag-roadmap">Roadmap:</span> Nextflow/Snakemake orchestration with structured run provenance</li>
-      <li>Linear GRCh38 only — no DRAGEN pangenome graph mode equivalent</li>
-      <li>Annotation via public ClinVar + optional snpEff/VEP — not Illumina Nirvana</li>
-      <li>Provided for technical/educational use — not validated for clinical diagnostics</li>
+      <li>Array / PLINK ingestion path (documented, not built)</li>
+      <li>Pluggable callers (DeepVariant) and Nextflow orchestration</li>
+      <li>Not validated for clinical diagnostics</li>
     </ul>
-    <p>
-      Swap panels by changing <code>PANEL_GENES</code>, <code>PANEL_BED</code>, and
-      <code>PANEL_NAME</code> — see
-      <a href="https://github.com/Toki-bio/example_workflow/tree/main/panels">panels/</a> on GitHub.
-    </p>
   </section>
 </main>
 
 <footer>
-  <a href="https://github.com/Toki-bio/example_workflow">example_workflow</a> —
-  MIT License · not for clinical use
+  <a href="https://github.com/Toki-bio/example_workflow">GitHub</a> ·
+  <a href="https://toki-bio.github.io/example_workflow/">GitHub Pages</a>
 </footer>
 
 <script src="assets/app.js"></script>

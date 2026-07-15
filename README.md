@@ -72,8 +72,9 @@ export PANEL_NAME="Your Panel Name"
 pipeline/run_pipeline.sh my_cohort_manifest.tsv
 ```
 
-`my_cohort_manifest.tsv` is tab-separated: `sample_id  case|control  R1.fastq.gz  R2.fastq.gz`
-(see `test_case/samples.tsv` for the format). See [`panels/README.md`](panels/README.md) for how
+`my_cohort_manifest.tsv` is tab-separated: `sample_id  case|control  R1.fastq[.gz]  R2.fastq[.gz]`
+(see `test_case/samples.tsv` for the format). R1/R2 accept plain `.fastq` or `.fastq.gz`; the
+align step auto-resolves paths if the extension is omitted. See [`panels/README.md`](panels/README.md) for how
 to define a new panel — no pipeline code changes needed.
 
 ## Known limitations / roadmap
