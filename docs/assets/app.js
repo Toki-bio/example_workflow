@@ -784,27 +784,133 @@ export TMP_DIR="${s.tmpDir}"`;
     saveState();
   }
 
-  const NAV_ITEMS = [
-    { href: "#overview", label: "Overview" },
-    { href: "#getting-started", label: "Getting started" },
-    { href: "#inputs-guide", label: "Inputs" },
-    ...STAGES.map((s) => ({ href: "#stage-" + s.id, label: s.num + " " + s.title })),
-    { href: "#roadmap", label: "Roadmap" },
+  const STAGE_SHORT = {
+    setup: "Environment setup",
+    config: "Shared configuration",
+    prepare: "Prepare reference",
+    align: "Align reads",
+    call: "Call variants",
+    annotate: "Annotate variants",
+    filter: "Filter pathogenic",
+    report: "HTML report",
+    aggregate: "Aggregate cohort",
+    fullrun: "Full cohort run",
+  };
+
+  const STAGE_NAV_SHORT = {
+    setup: "Setup",
+    config: "Config",
+    prepare: "Reference",
+    align: "Align",
+    call: "Call",
+    annotate: "Annotate",
+    filter: "Filter",
+    report: "Report",
+    aggregate: "Cohort",
+    fullrun: "Full run",
+  };
+
+  const NAV_GROUPS = [
+    {
+      id: "guide",
+      title: "Guide",
+      items: [
+        { href: "#overview", label: "Overview" },
+        { href: "#getting-started", label: "Getting started" },
+        { href: "#inputs-guide", label: "Input reference" },
+      ],
+    },
+    {
+      id: "pipeline",
+      title: "Pipeline",
+      items: STAGES.map((s) => ({
+        href: "#stage-" + s.id,
+        label: s.num,
+        title: STAGE_SHORT[s.id] || s.title,
+        stageId: s.id,
+      })),
+    },
+    {
+      id: "more",
+      title: "More",
+      items: [{ href: "#roadmap", label: "Roadmap" }],
+    },
   ];
 
-  function buildNavLinks(container) {
+  function allNavItems() {
+    return NAV_GROUPS.flatMap((g) => g.items);
+  }
+
+  function buildTopNav(container) {
     container.innerHTML = "";
-    NAV_ITEMS.forEach((item) => {
-      const a = document.createElement("a");
-      a.href = item.href;
-      a.textContent = item.label;
-      container.appendChild(a);
+    NAV_GROUPS.forEach((group) => {
+      const wrap = document.createElement("div");
+      wrap.className = "nav-group" + (group.id === "pipeline" ? " nav-group-pipeline" : "");
+      const label = document.createElement("span");
+      label.className = "nav-group-label";
+      label.textContent = group.title;
+      wrap.appendChild(label);
+      const links = document.createElement("div");
+      links.className = "nav-group-links";
+      group.items.forEach((item) => {
+        const a = document.createElement("a");
+        a.href = item.href;
+        a.textContent = item.stageId
+          ? item.label + " " + (STAGE_NAV_SHORT[item.stageId] || item.title)
+          : item.label;
+        links.appendChild(a);
+      });
+      wrap.appendChild(links);
+      container.appendChild(wrap);
+    });
+  }
+
+  function buildContentsNav(container) {
+    container.innerHTML = "";
+    NAV_GROUPS.forEach((group) => {
+      const section = document.createElement("div");
+      section.className = "contents-group" + (group.id === "pipeline" ? " contents-group-stages" : "");
+      const title = document.createElement("div");
+      title.className = "contents-group-title";
+      title.textContent = group.title;
+      section.appendChild(title);
+
+      if (group.id === "pipeline") {
+        const list = document.createElement("ol");
+        list.className = "contents-list contents-list-stages";
+        group.items.forEach((item) => {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = item.href;
+          const num = document.createElement("span");
+          num.className = "stage-num";
+          num.textContent = item.label;
+          a.appendChild(num);
+          a.appendChild(document.createTextNode(item.title));
+          li.appendChild(a);
+          list.appendChild(li);
+        });
+        section.appendChild(list);
+      } else {
+        const list = document.createElement("ul");
+        list.className = "contents-list";
+        group.items.forEach((item) => {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = item.href;
+          a.textContent = item.label;
+          li.appendChild(a);
+          list.appendChild(li);
+        });
+        section.appendChild(list);
+      }
+      container.appendChild(section);
     });
   }
 
   function initScrollSpy() {
-    const links = document.querySelectorAll(".site-nav .steps a, .contents-links a");
-    const sections = NAV_ITEMS.map((item) => document.querySelector(item.href)).filter(Boolean);
+    const links = document.querySelectorAll(".nav-group-links a, .contents-list a");
+    const sections = allNavItems().map((item) => document.querySelector(item.href)).filter(Boolean);
 
     function onScroll() {
       let current = sections[0];
@@ -830,8 +936,8 @@ export TMP_DIR="${s.tmpDir}"`;
     document.getElementById("reset-all")?.addEventListener("click", resetAll);
     document.getElementById("load-demo")?.addEventListener("click", resetAll);
 
-    buildNavLinks(document.getElementById("nav-steps"));
-    buildNavLinks(document.getElementById("contents-links"));
+    buildTopNav(document.getElementById("nav-steps"));
+    buildContentsNav(document.getElementById("contents-links"));
     initScrollSpy();
   }
 
