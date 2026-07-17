@@ -48,18 +48,29 @@ useful background if you're new to this space.
 ## Quick start (synthetic demo)
 
 ```bash
+git clone https://github.com/Toki-bio/example_workflow.git
+cd example_workflow
+
 conda env create -f envs/environment.yml
+source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
+
+# Confirm tools are on PATH (do NOT run bare `bwa` — that only prints usage help)
+bash pipeline/verify_tools.sh
 
 cd test_case
 ./run_demo.sh
-python check_demo.py results
+python3 check_demo.py results
 ```
 
 This aligns two small synthetic samples against a ~48kb slice of real GRCh38 sequence (MYBPC3
 + MYH7), calls variants, annotates against a real published ClinVar pathogenic variant, and
 generates an interactive HTML clinical report per sample — end to end in well under a minute,
 no FPGA or license required. See [`test_case/README.md`](test_case/README.md) for details.
+
+**Working directory:** clone the repo and run commands from that tree. Relative paths in the
+interactive guide assume the repo root (the folder that contains `pipeline/` and `test_case/`).
+The demo script (`test_case/run_demo.sh`) `cd`s itself and needs no path fiddling.
 
 ## Running on real data, or with a different panel
 

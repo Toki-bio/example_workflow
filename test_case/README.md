@@ -30,10 +30,12 @@ this minimal demo and are skipped automatically if not installed):
 
 ```bash
 conda env create -f ../envs/environment.yml
+source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
+bash ../pipeline/verify_tools.sh
 
 ./run_demo.sh
-python check_demo.py results
+python3 check_demo.py results
 ```
 
 Expected result: `case1.report.html` shows one Pathogenic hit at `demo_chr11_MYBPC3:12292`

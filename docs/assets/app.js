@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "variant-pipeline-guide-v2";
+  const STORAGE_KEY = "variant-pipeline-guide-v3";
   const SCRIPTS_BASE = "assets/scripts/";
 
   const DEFAULTS = {
@@ -205,7 +205,7 @@
       id: "setup",
       num: "0",
       title: "Environment setup",
-      desc: "Run once per machine. Installs programs (bwa, bcftools, snpEff tool, …) — not reference FASTAs, ClinVar, or snpEff databases. Clone the repo first; see Getting started.",
+      desc: "Once per machine: clone the repo, create the conda env, activate it, verify tools. Do not run bare 'bwa' / 'samtools' — that dumps usage text. Use pipeline/verify_tools.sh.",
       vars: [],
       file: null,
       runName: "setup.sh",
@@ -214,7 +214,7 @@
       id: "config",
       num: "00",
       title: "Shared configuration",
-      desc: "All scripts source 00_config.sh. Paths point at files on your machine; SNPEFF_DB is a tool name, not a path. Run from repo root (or export absolute paths). Demo: cd test_case && ./run_demo.sh sets these automatically.",
+      desc: "Every pipeline/*.sh script sources 00_config.sh. Defaults already point at the demo files inside this repo (resolved from the script location, not your shell cwd). Override with export for real data.",
       vars: ["refFasta", "clinvarVcf", "snpeffDb", "bcftoolsPloidy", "panelGenes", "panelBed", "panelName", "threads", "outDir", "tmpDir"],
       file: "00_config.sh",
       personalize: "config",
@@ -224,7 +224,7 @@
       id: "prepare",
       num: "01",
       title: "Prepare reference",
-      desc: "Build BWA index, samtools .fai, GATK dict, and tabix-index ClinVar. Run once per reference.",
+      desc: "Build BWA index, samtools .fai, GATK dict, tabix ClinVar. Safe to re-run — skips steps already done. Run once per REF_FASTA.",
       vars: ["refFasta", "clinvarVcf", "snpeffDb", "bcftoolsPloidy", "threads", "outDir", "tmpDir"],
       file: "01_prepare_reference.sh",
       runName: "01_prepare_reference.sh",
@@ -233,7 +233,7 @@
       id: "align",
       num: "02",
       title: "Align reads",
-      desc: "fastp QC → bwa mem → sort → markdup → index. Accepts .fastq or .fastq.gz (auto-resolved).",
+      desc: "fastp QC → bwa mem → sort → markdup → index. Accepts .fastq or .fastq.gz. FASTQ paths may be absolute or relative to your shell cwd (or to the manifest dir when using run_pipeline.sh).",
       vars: ["sampleId", "r1Fastq", "r2Fastq", "refFasta", "threads", "outDir", "tmpDir"],
       file: "02_align.sh",
       runName: "02_align.sh",
@@ -242,7 +242,7 @@
       id: "call",
       num: "03",
       title: "Call variants",
-      desc: "bcftools mpileup+call (primary) and GATK4 HaplotypeCaller (secondary). Both hard-filtered to PASS.",
+      desc: "Requires stage 02 BAM. bcftools mpileup+call (primary) and GATK4 HaplotypeCaller (secondary). Both hard-filtered to PASS.",
       vars: ["sampleId", "refFasta", "bcftoolsPloidy", "threads", "outDir", "tmpDir"],
       file: "03_call_variants.sh",
       runName: "03_call_variants.sh",
@@ -251,7 +251,7 @@
       id: "annotate",
       num: "04",
       title: "Annotate variants",
-      desc: "snpEff (if installed) + ClinVar via bcftools annotate. Optional VEP cross-check.",
+      desc: "Requires stage 03 hard-filtered VCF. snpEff (if DB installed) + ClinVar via bcftools annotate. Optional VEP cross-check.",
       vars: ["sampleId", "caller", "clinvarVcf", "snpeffDb", "refFasta", "outDir", "tmpDir"],
       file: "04_annotate.sh",
       runName: "04_annotate.sh",
@@ -260,7 +260,7 @@
       id: "filter",
       num: "05",
       title: "Filter pathogenic calls",
-      desc: "Extract ClinVar Pathogenic / Likely pathogenic variants to per-sample JSONL.",
+      desc: "Requires stage 04 annotated VCF. Writes per-sample JSONL of ClinVar Pathogenic / Likely pathogenic variants.",
       vars: ["sampleId", "sampleType", "caller", "outDir"],
       file: "05_filter_pathogenic.py",
       runName: "05_filter_pathogenic.py",
@@ -268,9 +268,9 @@
     },
     {
       id: "report",
-      num: "07",
+      num: "06",
       title: "Generate HTML report",
-      desc: "Interactive clinical report with panel highlights and ClinVar significance.",
+      desc: "Requires stage 04 annotated VCF. Per-sample interactive clinical report (panel + ClinVar).",
       vars: ["sampleId", "caller", "panelGenes", "panelName", "outDir"],
       file: "07_generate_report.py",
       runName: "07_generate_report.py",
@@ -278,9 +278,9 @@
     },
     {
       id: "aggregate",
-      num: "06",
+      num: "07",
       title: "Aggregate cohort",
-      desc: "After all samples complete stage 05: case vs control counts per pathogenic variant.",
+      desc: "Run after stage 05 for every sample. Case vs control counts per pathogenic variant.",
       vars: ["outDir"],
       file: "06_aggregate_case_control.py",
       runName: "06_aggregate_case_control.py",
@@ -289,8 +289,8 @@
     {
       id: "fullrun",
       num: "∞",
-      title: "Full cohort run",
-      desc: "run_pipeline.sh executes stages 01–07 for every manifest row, then aggregates.",
+      title: "Full cohort run (recommended)",
+      desc: "One command: prepares reference, then for each manifest row runs align→call→annotate→filter→report, then aggregates. Prefer this over copying stages 01–07 by hand. Easiest path: cd test_case && ./run_demo.sh",
       vars: ["manifest", "refFasta", "clinvarVcf", "panelGenes", "panelBed", "panelName", "threads", "outDir", "tmpDir"],
       file: "run_pipeline.sh",
       runName: "run_pipeline.sh",
@@ -353,8 +353,19 @@
     };
   }
 
+  function cwdPreamble() {
+    return `# Prerequisite: be inside the cloned repo (folder that contains pipeline/ and test_case/).
+# Example:
+#   cd /path/to/example_workflow
+# And have the conda env active:
+#   source "$(conda info --base)/etc/profile.d/conda.sh"
+#   conda activate variant-pipeline
+`;
+  }
+
   function exportsBlock(s) {
-    return `export REF_FASTA="${s.refFasta}"
+    return `${cwdPreamble()}
+export REF_FASTA="${s.refFasta}"
 export CLINVAR_VCF="${s.clinvarVcf}"
 export PANEL_GENES="${s.panelGenes}"
 export PANEL_BED="${s.panelBed}"
@@ -390,32 +401,97 @@ export TMP_DIR="${s.tmpDir}"`;
 
   const RUNNERS = {
     setup: () =>
-      `conda env create -f envs/environment.yml\nconda activate variant-pipeline\n\n# Verify tools\nbwa && samtools && bcftools && python3 --version`,
+      `# === Step 0: install tools (run once) ===
+# Clone if you have not already:
+#   git clone https://github.com/Toki-bio/example_workflow.git
+cd /path/to/example_workflow
 
-    config: (s) => `${exportsBlock(s)}\n\n# Config is sourced automatically by each pipeline/NN_*.sh script`,
+# Create env (skip if it already exists)
+conda env create -f envs/environment.yml
 
-    prepare: (s) => `${exportsBlock(s)}\n\npipeline/01_prepare_reference.sh`,
+# Activate (needed in every new shell)
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate variant-pipeline
+
+# Verify tools are on PATH — do NOT run bare "bwa" / "samtools" (that only prints usage help)
+bash pipeline/verify_tools.sh
+
+# Quick path after setup: run the built-in demo (no extra downloads)
+#   cd test_case && ./run_demo.sh && python3 check_demo.py results
+`,
+
+    config: (s) => `${exportsBlock(s)}
+
+# These exports override pipeline/00_config.sh defaults for subsequent commands
+# in THIS shell. Pipeline scripts also work with zero exports (demo defaults).
+# Check resolved values:
+echo "REF_FASTA=$REF_FASTA"
+echo "OUT_DIR=$OUT_DIR"
+`,
+
+    prepare: (s) => `${exportsBlock(s)}
+
+bash pipeline/01_prepare_reference.sh
+`,
 
     align: (s) => {
       const r1 = resolveFastq(s.r1Fastq);
       const r2 = resolveFastq(s.r2Fastq);
-      return `${exportsBlock(s)}\n\n# R1: ${r1.note}\n# R2: ${r2.note}\npipeline/02_align.sh ${s.sampleId} ${s.r1Fastq} ${s.r2Fastq}`;
+      return `${exportsBlock(s)}
+
+# R1: ${r1.note}
+# R2: ${r2.note}
+bash pipeline/02_align.sh ${s.sampleId} ${s.r1Fastq} ${s.r2Fastq}
+`;
     },
 
-    call: (s) => `${exportsBlock(s)}\n\npipeline/03_call_variants.sh ${s.sampleId}`,
+    call: (s) => `${exportsBlock(s)}
 
-    annotate: (s) => `${exportsBlock(s)}\n\npipeline/04_annotate.sh ${s.sampleId} ${s.caller}`,
+bash pipeline/03_call_variants.sh ${s.sampleId}
+`,
 
-    filter: (s) =>
-      `python3 pipeline/05_filter_pathogenic.py \\\n  "${s.outDir}/${s.sampleId}.${s.caller}.annotated.vcf.gz" \\\n  "${s.sampleId}" \\\n  "${s.sampleType}" \\\n  "${s.outDir}/${s.sampleId}.${s.sampleType}.pathogenic.jsonl"`,
+    annotate: (s) => `${exportsBlock(s)}
 
-    report: (s) =>
-      `python3 pipeline/07_generate_report.py \\\n  "${s.outDir}/${s.sampleId}.${s.caller}.annotated.vcf.gz" \\\n  "${s.sampleId}" \\\n  "${s.panelGenes}" \\\n  "${s.outDir}/${s.sampleId}.report.html" \\\n  "${s.panelName}"`,
+bash pipeline/04_annotate.sh ${s.sampleId} ${s.caller}
+`,
 
-    aggregate: (s) =>
-      `python3 pipeline/06_aggregate_case_control.py \\\n  "${s.outDir}/*.pathogenic.jsonl" \\\n  "${s.outDir}/aggregated_pathogenic_variants.json"`,
+    filter: (s) => `${cwdPreamble()}
+python3 pipeline/05_filter_pathogenic.py \\
+  "${s.outDir}/${s.sampleId}.${s.caller}.annotated.vcf.gz" \\
+  "${s.sampleId}" \\
+  "${s.sampleType}" \\
+  "${s.outDir}/${s.sampleId}.${s.sampleType}.pathogenic.jsonl"
+`,
 
-    fullrun: (s) => `${exportsBlock(s)}\n\n# Manifest: sample_id  case|control  R1  R2  (fastq or fastq.gz)\npipeline/run_pipeline.sh ${s.manifest}`,
+    report: (s) => `${cwdPreamble()}
+python3 pipeline/07_generate_report.py \\
+  "${s.outDir}/${s.sampleId}.${s.caller}.annotated.vcf.gz" \\
+  "${s.sampleId}" \\
+  "${s.panelGenes}" \\
+  "${s.outDir}/${s.sampleId}.report.html" \\
+  "${s.panelName}"
+`,
+
+    aggregate: (s) => `${cwdPreamble()}
+# Glob is expanded by Python (quotes are intentional)
+python3 pipeline/06_aggregate_case_control.py \\
+  "${s.outDir}/*.pathogenic.jsonl" \\
+  "${s.outDir}/aggregated_pathogenic_variants.json"
+`,
+
+    fullrun: (s) => `${exportsBlock(s)}
+
+# --- Easiest: synthetic demo (recommended first run) ---
+# cd test_case
+# ./run_demo.sh
+# python3 check_demo.py results
+
+# --- Or full cohort with your settings ---
+# Manifest columns (tab-separated, no header):
+#   sample_id   case|control   R1.fastq[.gz]   R2.fastq[.gz]
+# Relative FASTQ paths are resolved from the manifest's directory.
+bash pipeline/run_pipeline.sh ${s.manifest}
+`,
   };
 
   function scriptContent(stage, s) {

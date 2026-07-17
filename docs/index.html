@@ -65,10 +65,11 @@ flowchart LR
       <tr><td>PLINK</td><td>Array genotypes</td><td>Different path — roadmap</td></tr>
     </table>
     <p class="hint">
-      New here? Read <a href="#getting-started">Getting started</a> (working folder, demo vs real data).
-      Quick demo:
-      <code>conda activate variant-pipeline && cd test_case && ./run_demo.sh</code>
-      · More docs:
+      New here? Read <a href="#getting-started">Getting started</a>. After tools are installed,
+      the only command you need for a first success is:
+      <code>cd test_case && ./run_demo.sh</code>
+      · Verify tools with <code>bash pipeline/verify_tools.sh</code> (never bare <code>bwa</code>).
+      · Docs:
       <a href="DATA_TYPES_AND_WORKFLOWS.md">data types</a>,
       <a href="DRAGEN_TO_OSS_MAPPING.md">DRAGEN mapping</a>
     </p>
@@ -119,24 +120,29 @@ flowchart LR
         <pre class="inline-cmd">git clone https://github.com/Toki-bio/example_workflow.git
 cd example_workflow
 conda env create -f envs/environment.yml
-conda activate variant-pipeline</pre>
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate variant-pipeline
+bash pipeline/verify_tools.sh</pre>
         This installs <code>bwa</code>, <code>samtools</code>, <code>bcftools</code>,
         <code>GATK4</code>, <code>snpEff</code> (the program), etc. It does <em>not</em> install
         whole-genome reference FASTAs, full ClinVar, or snpEff annotation databases.
+        Do <strong>not</strong> verify with bare <code>bwa</code> / <code>samtools</code> —
+        those commands only print usage help. Use <code>pipeline/verify_tools.sh</code>.
       </li>
       <li>
         <strong>Run the built-in demo (no extra downloads)</strong>
         <pre class="inline-cmd">cd test_case
-./run_demo.sh</pre>
+./run_demo.sh
+python3 check_demo.py results</pre>
         Everything the demo needs is already in the repo: a tiny reference slice, synthetic FASTQs,
         a one-variant ClinVar subset, and the example panel. Outputs land in
-        <code>test_case/results/</code>.
+        <code>test_case/results/</code>. Prefer this over copying stages 01–07 by hand.
       </li>
       <li>
         <strong>Move to real data (when ready)</strong> — download reference + ClinVar (see
         <a href="#inputs-guide">inputs guide</a>), put your FASTQs somewhere, write a
-        <code>samples.tsv</code> manifest, set paths in stage 00 (or export env vars), run
-        <code>01_prepare_reference.sh</code> once, then <code>run_pipeline.sh</code>.
+        <code>samples.tsv</code> manifest, export paths (stage 00), then
+        <code>bash pipeline/run_pipeline.sh your_manifest.tsv</code>.
       </li>
     </ol>
 
