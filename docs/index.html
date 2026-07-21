@@ -35,42 +35,97 @@
 
   <section class="overview-compact" id="overview">
     <h2>Overview</h2>
-    <p>
-      Sequencing data (FASTQ → BAM → VCF) and array data (IDAT → PLINK → VCF) both converge at VCF
-      for annotation and reporting. This repo implements the <strong>sequencing / clinical panel</strong> path.
+    <p id="overview-intro">
+      Sequencing FASTQs can reach annotated VCFs through <strong>two engines</strong> documented here,
+      or through array genotyping (roadmap). Both sequencing engines share the same
+      <strong>clinical reporting</strong> steps in this repo (filter → report → aggregate).
     </p>
-    <div class="mermaid-wrap">
-      <pre class="mermaid">
-flowchart LR
-    subgraph seq ["Sequencing data — implemented in this repo"]
-        FASTQ["FASTQ / FASTQ.GZ"] --> BAMCRAM["BAM / CRAM"] --> VCF1[VCF]
-    end
-    subgraph arr ["Array / genotyping — roadmap"]
-        IDATCEL["IDAT / CEL"] --> PLINKfmt["PLINK BED/BIM/FAM"] --> Imputation --> VCF2[VCF]
-    end
-    VCF1 --> Converge["Annotation + reporting"]
-    VCF2 --> Converge
-    Converge --> Goals["Clinical panel · Population frequency · WGS · PRS/GWAS · Pharmacogenomics"]
-      </pre>
+
+    <div class="pathway-picker" id="pathway-picker" role="tablist" aria-label="Analysis pathway">
+      <button type="button" class="pathway-tab active" data-pathway="bash" role="tab" aria-selected="true">
+        <span class="pathway-tab-title">Bash pipeline</span>
+        <span class="pathway-tab-sub">Default · runnable demo</span>
+      </button>
+      <button type="button" class="pathway-tab" data-pathway="sarek" role="tab" aria-selected="false">
+        <span class="pathway-tab-title">nf-core/sarek</span>
+        <span class="pathway-tab-sub">Alternative · production scale</span>
+      </button>
+      <button type="button" class="pathway-tab" data-pathway="array" role="tab" aria-selected="false">
+        <span class="pathway-tab-title">Array / PLINK</span>
+        <span class="pathway-tab-sub">Roadmap</span>
+      </button>
     </div>
-    <p class="diagram-caption">
-      Both pathways converge at <strong>VCF</strong>. This walkthrough covers the
-      <strong>sequencing</strong> branch (left). The array branch (right) is documented but not yet implemented.
+
+    <div class="pathway-diagram" id="pathway-diagram-bash">
+      <div class="mermaid-wrap">
+        <pre class="mermaid">
+flowchart TB
+    FASTQ["FASTQ / FASTQ.GZ"]
+    subgraph bash ["Bash pipeline — implemented in this repo"]
+        FASTQ --> BAM["BAM"] --> VCFb["VCF"]
+        VCFb --> AnnB["snpEff + ClinVar"]
+    end
+    subgraph clinical ["Shared clinical layer — this repo"]
+        AnnB --> F05["05 Filter pathogenic"]
+        F05 --> F06["06 Aggregate cohort"]
+        F05 --> F07["07 HTML report"]
+    end
+        </pre>
+      </div>
+    </div>
+
+    <div class="pathway-diagram hidden" id="pathway-diagram-sarek">
+      <div class="mermaid-wrap">
+        <pre class="mermaid">
+flowchart TB
+    FASTQ2["FASTQ / FASTQ.GZ"]
+    subgraph sarek ["nf-core/sarek — alternative engine"]
+        FASTQ2 --> NF["Nextflow + containers"] --> VCFs["annotated VCF"]
+    end
+    subgraph clinical2 ["Shared clinical layer — this repo"]
+        VCFs --> F05b["05 Filter pathogenic"]
+        F05b --> F06b["06 Aggregate cohort"]
+        F05b --> F07b["07 HTML report"]
+    end
+        </pre>
+      </div>
+    </div>
+
+    <div class="pathway-diagram hidden" id="pathway-diagram-array">
+      <div class="mermaid-wrap">
+        <pre class="mermaid">
+flowchart TB
+    IDAT["IDAT / CEL"]
+    subgraph arr ["Array / PLINK — roadmap only"]
+        IDAT --> PLINK["PLINK BED/BIM/FAM"] --> VCFa["VCF"]
+    end
+    subgraph clinical3 ["Downstream — future"]
+        VCFa --> Goals["Population frequency · PRS/GWAS"]
+    end
+        </pre>
+      </div>
+    </div>
+
+    <p class="diagram-caption" id="pathway-caption">
+      <strong>Bash pipeline</strong> — stages below walk through <code>pipeline/*.sh</code>.
+      Fastest first run: <code>cd test_case && ./run_demo.sh</code>.
     </p>
-    <table>
+    <table id="pathway-tool-table">
       <tr><th>Tool family</th><th>Input</th><th>Role</th></tr>
-      <tr><td>bwa + samtools</td><td>FASTQ</td><td>Align, sort, mark duplicates</td></tr>
-      <tr><td>bcftools / GATK4</td><td>BAM</td><td>Variant calling</td></tr>
-      <tr><td>snpEff + ClinVar</td><td>VCF</td><td>Annotation</td></tr>
-      <tr><td>PLINK</td><td>Array genotypes</td><td>Different path — roadmap</td></tr>
+      <tr class="pathway-row-bash"><td>bwa + samtools</td><td>FASTQ</td><td>Align, sort, mark duplicates</td></tr>
+      <tr class="pathway-row-bash"><td>bcftools / GATK4</td><td>BAM</td><td>Variant calling</td></tr>
+      <tr class="pathway-row-bash"><td>snpEff + ClinVar</td><td>VCF</td><td>Annotation</td></tr>
+      <tr class="pathway-row-sarek hidden"><td>Nextflow + sarek</td><td>FASTQ</td><td>QC, align, BQSR, call, annotate (containers)</td></tr>
+      <tr class="pathway-row-sarek hidden"><td>GATK / DeepVariant / Strelka</td><td>BAM</td><td>Configurable via <code>--tools</code></td></tr>
+      <tr class="pathway-row-sarek hidden"><td>MultiQC</td><td>QC metrics</td><td>Run summary report</td></tr>
+      <tr class="pathway-row-array hidden"><td>PLINK</td><td>Array genotypes</td><td>Not built — see roadmap</td></tr>
+      <tr><td>Python stages 05–07</td><td>Annotated VCF</td><td>Pathogenic filter, HTML report, cohort aggregate (both engines)</td></tr>
     </table>
-    <p class="hint">
-      New here? Read <a href="#getting-started">Getting started</a>. After tools are installed,
-      the only command you need for a first success is:
+    <p class="hint" id="pathway-hint">
+      New here? Read <a href="#getting-started">Getting started</a>. Bash path:
       <code>cd test_case && ./run_demo.sh</code>
-      · Verify tools with <code>bash pipeline/verify_tools.sh</code> (never bare <code>bwa</code>).
-      · Docs:
-      <a href="DATA_TYPES_AND_WORKFLOWS.md">data types</a>,
+      · Sarek: <a href="SAREK_ALTERNATIVE.md">SAREK_ALTERNATIVE.md</a>
+      · <a href="DATA_TYPES_AND_WORKFLOWS.md">data types</a>,
       <a href="DRAGEN_TO_OSS_MAPPING.md">DRAGEN mapping</a>
     </p>
   </section>
@@ -330,8 +385,8 @@ python3 check_demo.py results</pre>
     </p>
   </section>
 
-  <h2>Pipeline stages</h2>
-  <p class="section-note">
+  <h2 id="stages-heading">Pipeline stages</h2>
+  <p class="section-note" id="stages-note">
     Work through <a href="#getting-started">Getting started</a> first if you have not run the demo yet.
     Each field shows <em>Kind</em> (file path vs tool name), <em>Demo default</em>, and how to obtain
     values for real data. Duplicate fields stay in sync. Lock a script after manual edits.
@@ -342,8 +397,9 @@ python3 check_demo.py results</pre>
   <section id="roadmap">
     <h2>Roadmap</h2>
     <ul class="compact">
+      <li><a href="SAREK_ALTERNATIVE.md">nf-core/sarek</a> — alternative sequencing engine (Nextflow); clinical stages 05–07 shared</li>
       <li>Array / PLINK ingestion path (documented, not built)</li>
-      <li>Pluggable callers (DeepVariant) and Nextflow orchestration</li>
+      <li>Pluggable callers (DeepVariant) in bash pipeline</li>
       <li>Linear reference only (no DRAGEN pangenome graphs) — any build via <code>REF_FASTA</code> (GRCh37, GRCh38, T2T, …); demo defaults to GRCh38</li>
       <li>Not validated for clinical diagnostics</li>
     </ul>

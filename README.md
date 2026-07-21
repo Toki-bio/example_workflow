@@ -40,6 +40,7 @@ useful background if you're new to this space.
 | [`docs/DATA_TYPES_AND_WORKFLOWS.md`](docs/DATA_TYPES_AND_WORKFLOWS.md) | Introduction to genomic data types (sequencing vs. array), tool landscape (DRAGEN vs. samtools/GATK vs. PLINK, etc.), and goal/tier matrix — what's implemented here vs. roadmap |
 | [`docs/ORIGINAL_DRAGEN_PIPELINE.md`](docs/ORIGINAL_DRAGEN_PIPELINE.md) | Case study: reconstruction of a real FPGA-accelerated DRAGEN pipeline, as run in production |
 | [`docs/DRAGEN_TO_OSS_MAPPING.md`](docs/DRAGEN_TO_OSS_MAPPING.md) | Stage-by-stage table mapping each DRAGEN feature to its open-source replacement |
+| [`docs/SAREK_ALTERNATIVE.md`](docs/SAREK_ALTERNATIVE.md) | Alternative sequencing engine: [nf-core/sarek](https://nf-co.re/sarek/3.9.0/) (Nextflow); clinical stages 05–07 shared |
 | [`panels/`](panels/) | Swappable gene-panel configs (gene list + BED region file); ships with a cardiomyopathy/channelopathy panel as the worked example |
 | [`envs/environment.yml`](envs/environment.yml) | Conda environment: bwa, samtools, bcftools, GATK4, snpEff, fastp/fastqc |
 | [`pipeline/`](pipeline/) | The pipeline itself: align → call variants (bcftools + GATK4) → annotate (snpEff/VEP + ClinVar) → filter pathogenic calls → case/control aggregate → HTML report |

@@ -612,6 +612,64 @@ h3 { font-size: 1.05rem; margin: 0 0 0.5rem; }
 
 .hint { font-size: 0.82rem; color: var(--hint); font-style: italic; }
 
+.hidden { display: none !important; }
+
+.pathway-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.pathway-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.65rem 0.75rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.pathway-tab:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.pathway-tab.active {
+  border-color: var(--accent);
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.pathway-tab-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.pathway-tab-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.pathway-placeholder {
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+@media (max-width: 640px) {
+  .pathway-picker {
+    grid-template-columns: 1fr;
+  }
+}
+
 ul.compact {
   margin: 0.5rem 0;
   padding-left: 1.25rem;

@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "variant-pipeline-guide-v3";
+  const STORAGE_KEY = "variant-pipeline-guide-v4";
   const SCRIPTS_BASE = "assets/scripts/";
 
   const DEFAULTS = {
@@ -21,6 +21,12 @@
     tmpDir: "test_case/results/tmp",
     manifest: "test_case/samples.tsv",
     caller: "bcftools",
+    sarekSamplesheet: "samplesheet.csv",
+    sarekOutDir: "sarek_results",
+    sarekProfile: "docker",
+    sarekGenome: "GRCh38",
+    sarekTools: "haplotypecaller,snpeff",
+    sarekVcf: "sarek_results/variant_calling/haplotypecaller/case1/case1.haplotypecaller.vcf.gz",
   };
 
   const KIND_LABELS = {
@@ -180,6 +186,61 @@
       where: "Copy test_case/samples.tsv as a template. One row per sample. Used by run_pipeline.sh.",
       example: "samples.tsv",
     },
+    sarekSamplesheet: {
+      label: "SAREK_SAMPLESHEET",
+      group: "sarek",
+      kind: "create",
+      bundled: "docs/assets/scripts/sarek_samplesheet.example.csv",
+      what: "CSV samplesheet for nf-core/sarek — columns: patient, sample, lane, fastq_1, fastq_2. Different from this repo's TSV manifest.",
+      where: "You create this file. See sarek usage docs and SAREK_ALTERNATIVE.md. One row per FASTQ pair.",
+      example: "samplesheet.csv",
+    },
+    sarekOutDir: {
+      label: "SAREK_OUTDIR",
+      group: "sarek",
+      kind: "setting",
+      bundled: "Any writable folder you choose",
+      what: "sarek --outdir — where Nextflow writes BAMs, VCFs, MultiQC, etc.",
+      where: "Pick a path with enough disk space (WGS needs hundreds of GB per cohort).",
+      example: "sarek_results",
+    },
+    sarekProfile: {
+      label: "SAREK_PROFILE",
+      group: "sarek",
+      kind: "setting",
+      bundled: "docker or singularity — must match your system",
+      what: "Nextflow -profile flag — selects container runtime and resource defaults.",
+      where: "Use docker on a laptop with Docker installed, singularity on HPC. Institute configs also exist.",
+      example: "docker",
+    },
+    sarekGenome: {
+      label: "SAREK_GENOME",
+      group: "sarek",
+      kind: "setting",
+      bundled: "GRCh38 via sarek iGenomes cache",
+      what: "Reference genome preset for sarek --genome.",
+      where: "GRCh38, GRCh37, etc. per sarek docs. First run downloads reference cache.",
+      example: "GRCh38",
+    },
+    sarekTools: {
+      label: "SAREK_TOOLS",
+      group: "sarek",
+      kind: "setting",
+      bundled: "haplotypecaller,snpeff is a common germline panel choice",
+      what: "Comma-separated list passed to sarek --tools (callers + annotators).",
+      where: "See sarek parameter docs: haplotypecaller, deepvariant, snpeff, vep, mutect2, ...",
+      example: "haplotypecaller,snpeff",
+    },
+    sarekVcf: {
+      label: "SAREK_VCF",
+      group: "sarek",
+      kind: "file",
+      bundled: "Path under sarek --outdir — varies by --tools and version",
+      what: "Annotated VCF from sarek for one sample — input to this repo's clinical scripts (stages 05–07).",
+      where: "After sarek completes, find per-sample VCF under variant_calling/ in --outdir. Adjust path to match your run.",
+      example: "sarek_results/variant_calling/haplotypecaller/case1/case1.haplotypecaller.vcf.gz",
+      note: "Exact subdirectory names depend on sarek version and --tools. Check sarek output docs.",
+    },
   };
 
   const GROUP_TITLES = {
@@ -198,9 +259,45 @@
     runtime: "Where outputs go and how much CPU to use. Pipeline creates OUT_DIR/TMP_DIR if missing.",
     sample: "Per-sample paths and IDs when running one sample at a time. Paths are on your machine.",
     cohort: "Batch manifest you write when running the full pipeline over many samples.",
+    sarek: "nf-core/sarek settings — external Nextflow pipeline, not shipped in this repo.",
   };
 
-  const STAGES = [
+  const CLINICAL_STAGES = [
+    {
+      id: "filter",
+      num: "05",
+      title: "Filter pathogenic calls",
+      desc: "Requires annotated VCF (from bash pipeline stage 04 or from sarek output). Writes per-sample JSONL of ClinVar Pathogenic / Likely pathogenic variants.",
+      vars: ["sampleId", "sampleType", "caller", "outDir"],
+      varsSarek: ["sampleId", "sampleType", "sarekVcf", "outDir"],
+      file: "05_filter_pathogenic.py",
+      runName: "05_filter_pathogenic.py",
+      isPython: true,
+    },
+    {
+      id: "report",
+      num: "06",
+      title: "Generate HTML report",
+      desc: "Per-sample interactive clinical report (panel + ClinVar). Same script regardless of which engine produced the VCF.",
+      vars: ["sampleId", "caller", "panelGenes", "panelName", "outDir"],
+      varsSarek: ["sampleId", "sarekVcf", "panelGenes", "panelName", "outDir"],
+      file: "07_generate_report.py",
+      runName: "07_generate_report.py",
+      isPython: true,
+    },
+    {
+      id: "aggregate",
+      num: "07",
+      title: "Aggregate cohort",
+      desc: "After stage 05 for every sample: case vs control counts per pathogenic variant.",
+      vars: ["outDir"],
+      file: "06_aggregate_case_control.py",
+      runName: "06_aggregate_case_control.py",
+      isPython: true,
+    },
+  ];
+
+  const STAGES_BASH = [
     {
       id: "setup",
       num: "0",
@@ -297,6 +394,50 @@
     },
   ];
 
+  const STAGES_SAREK = [
+    {
+      id: "sarek-setup",
+      num: "0",
+      title: "Install Nextflow + sarek",
+      desc: "One-time setup: Nextflow + Docker or Singularity. Not part of this repo — run externally. Test with sarek -profile test before real data.",
+      vars: [],
+      file: null,
+      runName: "sarek-setup.sh",
+    },
+    {
+      id: "sarek-samplesheet",
+      num: "1",
+      title: "Prepare samplesheet",
+      desc: "CSV with columns patient,sample,lane,fastq_1,fastq_2 — different from this repo's TSV manifest. See SAREK_ALTERNATIVE.md.",
+      vars: ["sarekSamplesheet"],
+      file: "sarek_samplesheet.example.csv",
+      runName: "samplesheet.csv",
+    },
+    {
+      id: "sarek-run",
+      num: "2",
+      title: "Run nf-core/sarek",
+      desc: "Runs QC → align → BQSR → variant calling → annotation in containers. Output: annotated VCFs under SAREK_OUTDIR.",
+      vars: ["sarekSamplesheet", "sarekOutDir", "sarekProfile", "sarekGenome", "sarekTools"],
+      file: null,
+      runName: "sarek-run.sh",
+    },
+    ...CLINICAL_STAGES,
+  ];
+
+  let activePathway = "bash";
+
+  function getActiveStages() {
+    if (activePathway === "sarek") {
+      return STAGES_SAREK.map((s) => {
+        if (!s.varsSarek) return s;
+        return { ...s, vars: s.varsSarek };
+      });
+    }
+    if (activePathway === "array") return [];
+    return STAGES_BASH;
+  }
+
   let settings = { ...DEFAULTS };
   let scriptBodies = {};
   let locked = {};
@@ -309,6 +450,7 @@
       if (raw) {
         const parsed = JSON.parse(raw);
         settings = { ...DEFAULTS, ...(parsed.settings || {}) };
+        activePathway = parsed.activePathway || "bash";
         locked = parsed.locked || {};
         const edits = parsed.edits || {};
         Object.keys(edits).forEach((id) => {
@@ -333,7 +475,7 @@
     });
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ settings, locked, edits })
+      JSON.stringify({ settings, locked, edits, activePathway })
     );
   }
 
@@ -399,6 +541,11 @@ export TMP_DIR="${s.tmpDir}"`;
     return out;
   }
 
+  function annotatedVcfPath(s) {
+    if (activePathway === "sarek") return s.sarekVcf;
+    return `${s.outDir}/${s.sampleId}.${s.caller}.annotated.vcf.gz`;
+  }
+
   const RUNNERS = {
     setup: () =>
       `# === Step 0: install tools (run once) ===
@@ -457,7 +604,7 @@ bash pipeline/04_annotate.sh ${s.sampleId} ${s.caller}
 
     filter: (s) => `${cwdPreamble()}
 python3 pipeline/05_filter_pathogenic.py \\
-  "${s.outDir}/${s.sampleId}.${s.caller}.annotated.vcf.gz" \\
+  "${annotatedVcfPath(s)}" \\
   "${s.sampleId}" \\
   "${s.sampleType}" \\
   "${s.outDir}/${s.sampleId}.${s.sampleType}.pathogenic.jsonl"
@@ -465,7 +612,7 @@ python3 pipeline/05_filter_pathogenic.py \\
 
     report: (s) => `${cwdPreamble()}
 python3 pipeline/07_generate_report.py \\
-  "${s.outDir}/${s.sampleId}.${s.caller}.annotated.vcf.gz" \\
+  "${annotatedVcfPath(s)}" \\
   "${s.sampleId}" \\
   "${s.panelGenes}" \\
   "${s.outDir}/${s.sampleId}.report.html" \\
@@ -491,6 +638,46 @@ python3 pipeline/06_aggregate_case_control.py \\
 #   sample_id   case|control   R1.fastq[.gz]   R2.fastq[.gz]
 # Relative FASTQ paths are resolved from the manifest's directory.
 bash pipeline/run_pipeline.sh ${s.manifest}
+`,
+
+    "sarek-setup": () =>
+      `# === nf-core/sarek setup (external — not in this repo) ===
+# Install Nextflow: https://www.nextflow.io/docs/latest/getstarted.html
+curl -s https://get.nextflow.io | bash
+sudo mv nextflow /usr/local/bin/   # or add to PATH
+
+# Install Docker OR Singularity (pick one for -profile)
+
+# Smoke test — uses sarek's tiny built-in dataset
+nextflow run nf-core/sarek -r 3.9.0 -profile test,docker --outdir sarek_test
+
+# Full docs: https://nf-co.re/sarek/3.9.0/
+`,
+
+    "sarek-samplesheet": (s) =>
+      `# Create ${s.sarekSamplesheet} — CSV, one row per FASTQ pair:
+# patient,sample,lane,fastq_1,fastq_2
+#
+# Example (demo FASTQs in this repo):
+# patient,sample,lane,fastq_1,fastq_2
+# case1,case1,L001,test_case/fastq/case1_R1.fastq.gz,test_case/fastq/case1_R2.fastq.gz
+# control1,control1,L001,test_case/fastq/control1_R1.fastq.gz,test_case/fastq/control1_R2.fastq.gz
+#
+# See docs/assets/scripts/sarek_samplesheet.example.csv and SAREK_ALTERNATIVE.md
+`,
+
+    "sarek-run": (s) =>
+      `# Run from repo root (or any directory with your samplesheet)
+nextflow run nf-core/sarek -r 3.9.0 \\
+  -profile ${s.sarekProfile} \\
+  --input ${s.sarekSamplesheet} \\
+  --outdir ${s.sarekOutDir} \\
+  --genome ${s.sarekGenome} \\
+  --tools ${s.sarekTools}
+
+# Then use stages 05–07 below with the per-sample VCF path from sarek output.
+# Typical VCF (adjust to your --tools and sarek version):
+#   ${s.sarekOutDir}/variant_calling/haplotypecaller/${s.sampleId}/${s.sampleId}.haplotypecaller.vcf.gz
 `,
   };
 
@@ -736,7 +923,7 @@ bash pipeline/run_pipeline.sh ${s.manifest}
   }
 
   function refreshStage(id) {
-    const stage = STAGES.find((s) => s.id === id);
+    const stage = getActiveStages().find((s) => s.id === id);
     if (!stage) return;
     if (runEls[id] && RUNNERS[id]) {
       runEls[id].textContent = RUNNERS[id](settings);
@@ -749,8 +936,8 @@ bash pipeline/run_pipeline.sh ${s.manifest}
     }
     if (stage.file) {
       textareaEls[id].value = scriptContent(stage, settings);
-    } else if (id === "setup") {
-      textareaEls[id].value = RUNNERS.setup();
+    } else if (id === "setup" || RUNNERS[id]) {
+      textareaEls[id].value = typeof RUNNERS[id] === "function" ? RUNNERS[id](settings) : RUNNERS.setup();
     }
   }
 
@@ -776,16 +963,16 @@ bash pipeline/run_pipeline.sh ${s.manifest}
     }
     updateFastqBadges();
     saveState();
-    STAGES.forEach((stage) => refreshStage(stage.id));
+    getActiveStages().forEach((stage) => refreshStage(stage.id));
   }
 
   function refreshAll() {
-    STAGES.forEach((stage) => refreshStage(stage.id));
+    getActiveStages().forEach((stage) => refreshStage(stage.id));
     updateFastqBadges();
   }
 
   async function fetchScripts() {
-    const files = STAGES.map((s) => s.file).filter(Boolean);
+    const files = getActiveStages().map((s) => s.file).filter(Boolean);
     await Promise.all(
       files.map(async (file) => {
         const res = await fetch(SCRIPTS_BASE + file);
@@ -821,7 +1008,7 @@ bash pipeline/run_pipeline.sh ${s.manifest}
 
   async function exportAll() {
     if (typeof JSZip === "undefined") {
-      STAGES.forEach((stage) => {
+      getActiveStages().forEach((stage) => {
         const ta = textareaEls[stage.id];
         if (ta && ta.value.trim()) downloadFile(stage.runName || stage.id + ".txt", ta.value);
       });
@@ -829,7 +1016,7 @@ bash pipeline/run_pipeline.sh ${s.manifest}
     }
     const zip = new JSZip();
     const folder = zip.folder("pipeline");
-    STAGES.forEach((stage) => {
+    getActiveStages().forEach((stage) => {
       const ta = textareaEls[stage.id];
       if (ta && ta.value.trim()) {
         folder.file(stage.runName || stage.id + ".txt", ta.value);
@@ -871,6 +1058,9 @@ bash pipeline/run_pipeline.sh ${s.manifest}
     report: "HTML report",
     aggregate: "Aggregate cohort",
     fullrun: "Full cohort run",
+    "sarek-setup": "Install Nextflow",
+    "sarek-samplesheet": "Prepare samplesheet",
+    "sarek-run": "Run nf-core/sarek",
   };
 
   const STAGE_NAV_SHORT = {
@@ -884,42 +1074,51 @@ bash pipeline/run_pipeline.sh ${s.manifest}
     report: "Report",
     aggregate: "Cohort",
     fullrun: "Full run",
+    "sarek-setup": "Setup",
+    "sarek-samplesheet": "Sheet",
+    "sarek-run": "Run",
   };
 
-  const NAV_GROUPS = [
-    {
-      id: "guide",
-      title: "Guide",
-      items: [
-        { href: "#overview", label: "Overview" },
-        { href: "#getting-started", label: "Getting started" },
-        { href: "#inputs-guide", label: "Input reference" },
-      ],
-    },
-    {
-      id: "pipeline",
-      title: "Pipeline",
-      items: STAGES.map((s) => ({
-        href: "#stage-" + s.id,
-        label: s.num,
-        title: STAGE_SHORT[s.id] || s.title,
-        stageId: s.id,
-      })),
-    },
-    {
-      id: "more",
-      title: "More",
-      items: [{ href: "#roadmap", label: "Roadmap" }],
-    },
-  ];
+  function getNavGroups() {
+    const stages = getActiveStages();
+    return [
+      {
+        id: "guide",
+        title: "Guide",
+        items: [
+          { href: "#overview", label: "Overview" },
+          { href: "#getting-started", label: "Getting started" },
+          { href: "#inputs-guide", label: "Input reference" },
+        ],
+      },
+      {
+        id: "pipeline",
+        title: activePathway === "sarek" ? "Sarek + clinical" : "Pipeline",
+        items: stages.map((s) => ({
+          href: "#stage-" + s.id,
+          label: s.num,
+          title: STAGE_SHORT[s.id] || s.title,
+          stageId: s.id,
+        })),
+      },
+      {
+        id: "more",
+        title: "More",
+        items: [
+          { href: "#roadmap", label: "Roadmap" },
+          { href: "SAREK_ALTERNATIVE.md", label: "Sarek guide", external: true },
+        ],
+      },
+    ];
+  }
 
   function allNavItems() {
-    return NAV_GROUPS.flatMap((g) => g.items);
+    return getNavGroups().flatMap((g) => g.items).filter((i) => !i.external);
   }
 
   function buildTopNav(container) {
     container.innerHTML = "";
-    NAV_GROUPS.forEach((group) => {
+    getNavGroups().forEach((group) => {
       const wrap = document.createElement("div");
       wrap.className = "nav-group" + (group.id === "pipeline" ? " nav-group-pipeline" : "");
       const label = document.createElement("span");
@@ -943,7 +1142,7 @@ bash pipeline/run_pipeline.sh ${s.manifest}
 
   function buildContentsNav(container) {
     container.innerHTML = "";
-    NAV_GROUPS.forEach((group) => {
+    getNavGroups().forEach((group) => {
       const section = document.createElement("div");
       section.className = "contents-group" + (group.id === "pipeline" ? " contents-group-stages" : "");
       const title = document.createElement("div");
@@ -974,6 +1173,7 @@ bash pipeline/run_pipeline.sh ${s.manifest}
           const li = document.createElement("li");
           const a = document.createElement("a");
           a.href = item.href;
+          if (item.external) a.target = "_blank";
           a.textContent = item.label;
           li.appendChild(a);
           list.appendChild(li);
@@ -1003,15 +1203,112 @@ bash pipeline/run_pipeline.sh ${s.manifest}
     onScroll();
   }
 
-  function buildPage() {
+  function renderArrayPlaceholder() {
+    const el = document.createElement("article");
+    el.className = "stage pathway-placeholder";
+    el.id = "stage-array-info";
+    el.innerHTML = `
+      <h3>Array / PLINK pathway — roadmap</h3>
+      <p>Not implemented in this repo. Array data (IDAT/CEL → PLINK → imputed VCF) is documented in
+      <a href="DATA_TYPES_AND_WORKFLOWS.md">DATA_TYPES_AND_WORKFLOWS.md</a> section 3.
+      Population-frequency and PRS/GWAS workflows use this path instead of FASTQ sequencing.</p>
+    `;
+    return el;
+  }
+
+  function updatePathwayOverview(pathway) {
+    document.querySelectorAll(".pathway-diagram").forEach((el) => {
+      el.classList.toggle("hidden", el.id !== "pathway-diagram-" + pathway);
+    });
+    document.querySelectorAll(".pathway-row-bash, .pathway-row-sarek, .pathway-row-array").forEach((row) => {
+      row.classList.add("hidden");
+    });
+    document.querySelectorAll(".pathway-row-" + pathway).forEach((row) => {
+      row.classList.remove("hidden");
+    });
+    const cap = document.getElementById("pathway-caption");
+    if (cap) {
+      const text = {
+        bash: "<strong>Bash pipeline</strong> — stages below walk through <code>pipeline/*.sh</code>. Fastest first run: <code>cd test_case && ./run_demo.sh</code>.",
+        sarek: "<strong>nf-core/sarek</strong> — external Nextflow pipeline for production-scale calling. Stages 05–07 below use <em>this repo's</em> Python scripts on sarek VCF output. See <a href=\"SAREK_ALTERNATIVE.md\">SAREK_ALTERNATIVE.md</a>.",
+        array: "<strong>Array / PLINK</strong> — documented only, not runnable here. See <a href=\"DATA_TYPES_AND_WORKFLOWS.md\">DATA_TYPES_AND_WORKFLOWS.md</a>.",
+      };
+      cap.innerHTML = text[pathway] || "";
+    }
+    const heading = document.getElementById("stages-heading");
+    if (heading) {
+      heading.textContent = pathway === "array"
+        ? "Array pathway (roadmap)"
+        : pathway === "sarek"
+          ? "Sarek + clinical stages"
+          : "Pipeline stages";
+    }
+    const note = document.getElementById("stages-note");
+    if (note) {
+      note.innerHTML = pathway === "bash"
+        ? "Work through <a href=\"#getting-started\">Getting started</a> first. Each field shows <em>Kind</em>, <em>Demo default</em>, and how to obtain values for real data."
+        : pathway === "sarek"
+          ? "Sarek runs outside this repo (Nextflow). Stages 05–07 are shared clinical scripts — point <code>SAREK_VCF</code> at sarek's per-sample annotated VCF."
+          : "Array ingestion is not implemented. Select <strong>Bash pipeline</strong> or <strong>nf-core/sarek</strong> for sequencing workflows.";
+    }
+  }
+
+  function rebuildStages() {
     renderedVarKeys.clear();
     const container = document.getElementById("pipeline-stages");
-    STAGES.forEach((stage) => container.appendChild(renderStage(stage)));
+    container.innerHTML = "";
+    textareaEls = {};
+    runEls = {};
+
+    if (activePathway === "array") {
+      container.appendChild(renderArrayPlaceholder());
+    } else {
+      getActiveStages().forEach((stage) => container.appendChild(renderStage(stage)));
+    }
+
+    buildTopNav(document.getElementById("nav-steps"));
+    buildContentsNav(document.getElementById("contents-links"));
+    initScrollSpy();
+    fetchScripts().then(() => refreshAll());
+  }
+
+  function setPathway(pathway) {
+    if (pathway === "array") {
+      activePathway = "array";
+    } else {
+      activePathway = pathway === "sarek" ? "sarek" : "bash";
+    }
+    document.querySelectorAll(".pathway-tab").forEach((btn) => {
+      const on = btn.dataset.pathway === activePathway;
+      btn.classList.toggle("active", on);
+      if (!btn.disabled) btn.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    updatePathwayOverview(activePathway);
+    rebuildStages();
+    saveState();
+  }
+
+  function buildPage() {
+    const container = document.getElementById("pipeline-stages");
+    container.innerHTML = "";
+    if (activePathway === "array") {
+      container.appendChild(renderArrayPlaceholder());
+    } else {
+      getActiveStages().forEach((stage) => container.appendChild(renderStage(stage)));
+    }
 
     document.getElementById("export-all")?.addEventListener("click", exportAll);
     document.getElementById("reset-all")?.addEventListener("click", resetAll);
-    document.getElementById("load-demo")?.addEventListener("click", resetAll);
+    document.getElementById("load-demo")?.addEventListener("click", () => {
+      setPathway("bash");
+      resetAll();
+    });
 
+    document.querySelectorAll(".pathway-tab").forEach((btn) => {
+      btn.addEventListener("click", () => setPathway(btn.dataset.pathway));
+    });
+
+    updatePathwayOverview(activePathway);
     buildTopNav(document.getElementById("nav-steps"));
     buildContentsNav(document.getElementById("contents-links"));
     initScrollSpy();

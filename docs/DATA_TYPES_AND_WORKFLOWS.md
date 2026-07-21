@@ -31,16 +31,20 @@ of that point (annotation, clinical classification, population-frequency lookups
 in principle, be format-agnostic.
 
 ```mermaid
-flowchart LR
-    subgraph seq ["Sequencing data"]
-        FASTQ --> BAMCRAM["BAM / CRAM"] --> VCF1[VCF]
+flowchart TB
+    subgraph seq_bash ["Sequencing — bash pipeline (this repo)"]
+        FASTQ1[FASTQ] --> BAM1[BAM] --> VCFb[VCF]
     end
-    subgraph arr ["Array / genotyping data (roadmap)"]
+    subgraph seq_sarek ["Sequencing — nf-core/sarek (alternative)"]
+        FASTQ2[FASTQ] --> NF[Nextflow] --> VCFs[annotated VCF]
+    end
+    subgraph arr ["Array / genotyping (roadmap)"]
         IDATCEL["IDAT / CEL"] --> PLINKfmt["PLINK BED / BIM / FAM"] --> Imputation --> VCF2[VCF]
     end
-    VCF1 --> Converge["Annotation + clinical/population interpretation"]
-    VCF2 --> Converge
-    Converge --> Goals["Different goal tiers: clinical panel, population frequency,\nresearch WGS, PRS/GWAS, pharmacogenomics"]
+    VCFb --> Converge["Clinical layer — this repo stages 05–07"]
+    VCFs --> Converge
+    VCF2 --> Goals["Population frequency · PRS/GWAS"]
+    Converge --> Goals2["Clinical panel reporting"]
 ```
 
 ## 2. Sequencing-side formats, in order of the pipeline
@@ -145,12 +149,18 @@ just by pointing it at a different panel config.
 ## 6. What's implemented here vs. roadmap
 
 **Implemented and runnable today:**
-- FASTQ -> BAM/CRAM -> VCF sequencing path (bwa + samtools + bcftools/GATK4).
+- FASTQ -> BAM/CRAM -> VCF sequencing path (bwa + samtools + bcftools/GATK4) — **bash pipeline** in `pipeline/`.
 - Two independent variant callers (bcftools primary, GATK4 secondary) as a cross-check pattern.
 - ClinVar-based pathogenic-variant filtering and panel-scoped clinical HTML reporting.
 - Swappable panel config (gene list + BED) — see [`panels/README.md`](../panels/README.md).
 - A small, fully synthetic, shareable 2-sample demo (no real patient data) — see
   [`test_case/README.md`](../test_case/README.md).
+
+**Alternative sequencing engine (documented, run externally):**
+- [nf-core/sarek](https://nf-co.re/sarek/3.9.0/) — Nextflow pipeline for production-scale
+  FASTQ→annotated VCF. Clinical stages 05–07 in this repo work on sarek output VCFs.
+  See [`docs/SAREK_ALTERNATIVE.md`](docs/SAREK_ALTERNATIVE.md) and the pathway selector on the
+  [interactive guide](https://toki-bio.github.io/example_workflow/).
 
 **Roadmap (documented here, not yet built):**
 - Array/genotyping ingestion path: IDAT/CEL -> genotype calling -> PLINK QC -> imputation -> VCF.

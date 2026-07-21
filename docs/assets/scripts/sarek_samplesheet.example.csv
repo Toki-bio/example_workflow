@@ -1,0 +1,3 @@
+patient,sample,lane,fastq_1,fastq_2
+case1,case1,L001,test_case/fastq/case1_R1.fastq.gz,test_case/fastq/case1_R2.fastq.gz
+control1,control1,L001,test_case/fastq/control1_R1.fastq.gz,test_case/fastq/control1_R2.fastq.gz
