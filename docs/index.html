@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Variant pipeline — step-by-step guide</title>
   <link rel="stylesheet" href="assets/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 </head>
 <body>
@@ -13,18 +12,15 @@
 <nav class="site-nav">
   <div class="site-nav-inner">
     <a class="brand" href="#top">example_workflow</a>
-    <div class="nav-groups" id="nav-steps"></div>
+    <a class="site-nav-jump" href="#steps-nav">Go to steps</a>
   </div>
 </nav>
 
 <main id="top">
   <h1>Germline variant-calling pipeline</h1>
   <p class="lead">
-    This page documents a pipeline you run <strong>on your own machine</strong> after cloning the
-    repo — it is not a web service. Read <a href="#getting-started">Getting started</a> first
-    (working folder, what's bundled vs what you download), then use the stage walkthrough below.
-    Change any variable — scripts update immediately. Accepts <code>.fastq</code> and
-    <code>.fastq.gz</code>.
+    Run this pipeline on <strong>your own machine</strong> (bash terminal, not a web service).
+    Pick an analysis engine below, then work through the steps in order.
   </p>
 
   <div class="global-toolbar">
@@ -57,83 +53,66 @@
     </div>
 
     <div class="pathway-diagram" id="pathway-diagram-bash">
-      <div class="mermaid-wrap">
-        <pre class="mermaid">
-flowchart TB
-    FASTQ["FASTQ / FASTQ.GZ"]
-    subgraph bash ["Bash pipeline — implemented in this repo"]
-        FASTQ --> BAM["BAM"] --> VCFb["VCF"]
-        VCFb --> AnnB["snpEff + ClinVar"]
-    end
-    subgraph clinical ["Shared clinical layer — this repo"]
-        AnnB --> F05["05 Filter pathogenic"]
-        F05 --> F06["06 Aggregate cohort"]
-        F05 --> F07["07 HTML report"]
-    end
-        </pre>
+      <div class="flow-diagram" aria-label="Bash pipeline flow">
+        <div class="flow-row"><span class="flow-box">FASTQ</span></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="flow-row"><span class="flow-box">Align → BAM</span><span class="flow-hint">bwa, samtools</span></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="flow-row"><span class="flow-box">Call variants → VCF</span><span class="flow-hint">bcftools, GATK</span></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="flow-row"><span class="flow-box">Annotate</span><span class="flow-hint">snpEff, ClinVar</span></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="flow-row flow-row-split">
+          <span class="flow-box flow-box-clinical">Filter pathogenic</span>
+          <span class="flow-box flow-box-clinical">HTML report</span>
+          <span class="flow-box flow-box-clinical">Aggregate cohort</span>
+        </div>
       </div>
     </div>
 
     <div class="pathway-diagram hidden" id="pathway-diagram-sarek">
-      <div class="mermaid-wrap">
-        <pre class="mermaid">
-flowchart TB
-    FASTQ2["FASTQ / FASTQ.GZ"]
-    subgraph sarek ["nf-core/sarek — alternative engine"]
-        FASTQ2 --> NF["Nextflow + containers"] --> VCFs["annotated VCF"]
-    end
-    subgraph clinical2 ["Shared clinical layer — this repo"]
-        VCFs --> F05b["05 Filter pathogenic"]
-        F05b --> F06b["06 Aggregate cohort"]
-        F05b --> F07b["07 HTML report"]
-    end
-        </pre>
+      <div class="flow-diagram" aria-label="Sarek pipeline flow">
+        <div class="flow-row"><span class="flow-box">FASTQ</span></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="flow-row"><span class="flow-box">nf-core/sarek</span><span class="flow-hint">Nextflow + containers</span></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="flow-row"><span class="flow-box">Annotated VCF</span></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="flow-row flow-row-split">
+          <span class="flow-box flow-box-clinical">Filter pathogenic</span>
+          <span class="flow-box flow-box-clinical">HTML report</span>
+          <span class="flow-box flow-box-clinical">Aggregate cohort</span>
+        </div>
+        <p class="flow-note">Clinical steps use Python scripts from this repo on sarek output.</p>
       </div>
     </div>
 
     <div class="pathway-diagram hidden" id="pathway-diagram-array">
-      <div class="mermaid-wrap">
-        <pre class="mermaid">
-flowchart TB
-    IDAT["IDAT / CEL"]
-    subgraph arr ["Array / PLINK — roadmap only"]
-        IDAT --> PLINK["PLINK BED/BIM/FAM"] --> VCFa["VCF"]
-    end
-    subgraph clinical3 ["Downstream — future"]
-        VCFa --> Goals["Population frequency · PRS/GWAS"]
-    end
-        </pre>
+      <div class="flow-diagram" aria-label="Array pathway flow">
+        <div class="flow-row"><span class="flow-box">IDAT / CEL</span></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="flow-row"><span class="flow-box">PLINK</span></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="flow-row"><span class="flow-box">VCF</span><span class="flow-hint">population / PRS</span></div>
+        <p class="flow-note">Not implemented in this repo.</p>
       </div>
     </div>
 
     <p class="diagram-caption" id="pathway-caption">
-      <strong>Bash pipeline</strong> — stages below walk through <code>pipeline/*.sh</code>.
-      Fastest first run: <code>cd test_case && ./run_demo.sh</code>.
-    </p>
-    <table id="pathway-tool-table">
-      <tr><th>Tool family</th><th>Input</th><th>Role</th></tr>
-      <tr class="pathway-row-bash"><td>bwa + samtools</td><td>FASTQ</td><td>Align, sort, mark duplicates</td></tr>
-      <tr class="pathway-row-bash"><td>bcftools / GATK4</td><td>BAM</td><td>Variant calling</td></tr>
-      <tr class="pathway-row-bash"><td>snpEff + ClinVar</td><td>VCF</td><td>Annotation</td></tr>
-      <tr class="pathway-row-sarek hidden"><td>Nextflow + sarek</td><td>FASTQ</td><td>QC, align, BQSR, call, annotate (containers)</td></tr>
-      <tr class="pathway-row-sarek hidden"><td>GATK / DeepVariant / Strelka</td><td>BAM</td><td>Configurable via <code>--tools</code></td></tr>
-      <tr class="pathway-row-sarek hidden"><td>MultiQC</td><td>QC metrics</td><td>Run summary report</td></tr>
-      <tr class="pathway-row-array hidden"><td>PLINK</td><td>Array genotypes</td><td>Not built — see roadmap</td></tr>
-      <tr><td>Python stages 05–07</td><td>Annotated VCF</td><td>Pathogenic filter, HTML report, cohort aggregate (both engines)</td></tr>
-    </table>
-    <p class="hint" id="pathway-hint">
-      New here? Read <a href="#getting-started">Getting started</a>. Bash path:
-      <code>cd test_case && ./run_demo.sh</code>
-      · Sarek: <a href="SAREK_ALTERNATIVE.md">SAREK_ALTERNATIVE.md</a>
-      · <a href="DATA_TYPES_AND_WORKFLOWS.md">data types</a>,
-      <a href="DRAGEN_TO_OSS_MAPPING.md">DRAGEN mapping</a>
+      Bash pipeline — work through the steps below. First time?
+      <a href="#getting-started">Getting started</a> walks through
+      <code>cd test_case && ./run_demo.sh</code>.
     </p>
   </section>
 
-  <nav class="contents-nav" id="contents" aria-label="Page contents">
-    <div class="contents-title">Contents</div>
+  <nav class="contents-nav" id="steps-nav" aria-label="Steps">
+    <div class="contents-title">Follow these steps</div>
+    <p class="contents-intro" id="contents-intro">
+      Read the three guide sections in order, then run the pipeline steps below.
+    </p>
     <div class="contents-links" id="contents-links"></div>
   </nav>
+
 
   <section class="getting-started" id="getting-started">
     <h2>Getting started: where it runs, working folder, what's included</h2>

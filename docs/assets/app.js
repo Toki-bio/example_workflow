@@ -428,14 +428,18 @@
   let activePathway = "bash";
 
   function getActiveStages() {
+    let stages;
     if (activePathway === "sarek") {
-      return STAGES_SAREK.map((s) => {
+      stages = STAGES_SAREK.map((s) => {
         if (!s.varsSarek) return s;
         return { ...s, vars: s.varsSarek };
       });
+    } else if (activePathway === "array") {
+      return [];
+    } else {
+      stages = STAGES_BASH;
     }
-    if (activePathway === "array") return [];
-    return STAGES_BASH;
+    return enrichStages(stages);
   }
 
   let settings = { ...DEFAULTS };
@@ -811,8 +815,22 @@ nextflow run nf-core/sarek -r 3.9.0 \\
 
     const header = document.createElement("div");
     header.className = "stage-header";
-    header.innerHTML = `<span class="stage-num">${stage.num}</span><h3>${stage.title}</h3>`;
+    const badge = document.createElement("span");
+    badge.className = "stage-badge";
+    badge.textContent = stage.stepLabel || stage.num;
+    const title = document.createElement("h3");
+    title.textContent = stage.title;
+    header.appendChild(badge);
+    header.appendChild(title);
     el.appendChild(header);
+
+    const scriptRef = stage.scriptLabel || (stage.file ? `pipeline/${stage.file}` : "");
+    if (scriptRef) {
+      const scriptEl = document.createElement("p");
+      scriptEl.className = "stage-script-ref";
+      scriptEl.textContent = scriptRef;
+      el.appendChild(scriptEl);
+    }
 
     const desc = document.createElement("p");
     desc.className = "stage-desc";
@@ -1079,113 +1097,206 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     "sarek-run": "Run",
   };
 
+  const STAGE_NAV_DESC = {
+    setup: "One-time: clone repo, conda env, verify tools",
+    config: "Default paths — override for real data",
+    prepare: "Index reference FASTA and tabix ClinVar",
+    align: "FASTQ → sorted, deduplicated BAM",
+    call: "Variant calling (bcftools + GATK)",
+    annotate: "snpEff + ClinVar on VCF",
+    filter: "Keep pathogenic / likely pathogenic",
+    report: "Per-sample HTML clinical report",
+    aggregate: "Case vs control counts across cohort",
+    fullrun: "One command for the whole manifest",
+    "sarek-setup": "Install Nextflow and a container runtime",
+    "sarek-samplesheet": "CSV input for nf-core/sarek",
+    "sarek-run": "QC, align, call, annotate in containers",
+  };
+
+  const GUIDE_ITEMS = [
+    {
+      href: "#overview",
+      step: "1",
+      title: "Overview",
+      desc: "What this repo does and which engine to pick (bash, sarek, or array).",
+    },
+    {
+      href: "#getting-started",
+      step: "2",
+      title: "Getting started",
+      desc: "Clone the repo, install tools, run the built-in demo once.",
+    },
+    {
+      href: "#inputs-guide",
+      step: "3",
+      title: "Input reference",
+      desc: "Every path and setting — files you download vs tool lookup names.",
+    },
+  ];
+
+  function enrichStages(stages) {
+    let step = 0;
+    return stages.map((stage) => {
+      const navTitle = STAGE_SHORT[stage.id] || stage.title;
+      const navDesc = STAGE_NAV_DESC[stage.id] || stage.title;
+      const scriptLabel = stage.file
+        ? `pipeline/${stage.file}`
+        : stage.runName && !stage.isPython
+          ? stage.runName
+          : null;
+
+      if (stage.id === "fullrun") {
+        return {
+          ...stage,
+          stepLabel: "Quick start",
+          navTitle,
+          navDesc,
+          scriptLabel: stage.file ? `pipeline/${stage.file}` : scriptLabel,
+        };
+      }
+
+      step += 1;
+      return {
+        ...stage,
+        step,
+        stepLabel: `Step ${step}`,
+        navTitle,
+        navDesc,
+        scriptLabel,
+      };
+    });
+  }
+
   function getNavGroups() {
     const stages = getActiveStages();
-    return [
+    const groups = [
       {
         id: "guide",
-        title: "Guide",
-        items: [
-          { href: "#overview", label: "Overview" },
-          { href: "#getting-started", label: "Getting started" },
-          { href: "#inputs-guide", label: "Input reference" },
-        ],
-      },
-      {
-        id: "pipeline",
-        title: activePathway === "sarek" ? "Sarek + clinical" : "Pipeline",
-        items: stages.map((s) => ({
-          href: "#stage-" + s.id,
-          label: s.num,
-          title: STAGE_SHORT[s.id] || s.title,
-          stageId: s.id,
-        })),
-      },
-      {
-        id: "more",
-        title: "More",
-        items: [
-          { href: "#roadmap", label: "Roadmap" },
-          { href: "SAREK_ALTERNATIVE.md", label: "Sarek guide", external: true },
-        ],
+        title: "Before you run",
+        intro:
+          "Read these three pages top to bottom. They explain the layout, how to install, and every input field.",
+        items: GUIDE_ITEMS,
       },
     ];
+
+    if (activePathway !== "array") {
+      groups.push({
+        id: "pipeline",
+        title: activePathway === "sarek" ? "Sarek + clinical steps" : "Pipeline steps",
+        intro:
+          activePathway === "sarek"
+            ? "Run sarek outside this repo, then use the clinical scripts here on its VCF output."
+            : "Run in order. Each step expands below with settings, commands, and editable scripts.",
+        items: stages.map((s) => ({
+          href: "#stage-" + s.id,
+          stepLabel: s.stepLabel,
+          title: s.navTitle,
+          desc: s.navDesc,
+          scriptLabel: s.scriptLabel,
+          stageId: s.id,
+        })),
+      });
+    }
+
+    groups.push({
+      id: "more",
+      title: "Reference docs",
+      intro: "Optional reading after you have run the demo.",
+      items: [
+        { href: "#roadmap", step: "·", title: "Roadmap", desc: "Future work and known limitations." },
+        {
+          href: "SAREK_ALTERNATIVE.md",
+          step: "·",
+          title: "Sarek guide",
+          desc: "Full nf-core/sarek setup and samplesheet format.",
+          external: true,
+        },
+        {
+          href: "DATA_TYPES_AND_WORKFLOWS.md",
+          step: "·",
+          title: "Data types",
+          desc: "FASTQ, array, and workflow patterns.",
+          external: true,
+        },
+      ],
+    });
+
+    return groups;
   }
 
   function allNavItems() {
     return getNavGroups().flatMap((g) => g.items).filter((i) => !i.external);
   }
 
-  function buildTopNav(container) {
-    container.innerHTML = "";
-    getNavGroups().forEach((group) => {
-      const wrap = document.createElement("div");
-      wrap.className = "nav-group" + (group.id === "pipeline" ? " nav-group-pipeline" : "");
-      const label = document.createElement("span");
-      label.className = "nav-group-label";
-      label.textContent = group.title;
-      wrap.appendChild(label);
-      const links = document.createElement("div");
-      links.className = "nav-group-links";
-      group.items.forEach((item) => {
-        const a = document.createElement("a");
-        a.href = item.href;
-        a.textContent = item.stageId
-          ? item.label + " " + (STAGE_NAV_SHORT[item.stageId] || item.title)
-          : item.label;
-        links.appendChild(a);
-      });
-      wrap.appendChild(links);
-      container.appendChild(wrap);
-    });
-  }
-
   function buildContentsNav(container) {
     container.innerHTML = "";
     getNavGroups().forEach((group) => {
-      const section = document.createElement("div");
-      section.className = "contents-group" + (group.id === "pipeline" ? " contents-group-stages" : "");
-      const title = document.createElement("div");
+      const section = document.createElement("section");
+      section.className = "contents-group";
+      if (group.id === "pipeline") section.classList.add("contents-group-pipeline");
+
+      const title = document.createElement("h3");
       title.className = "contents-group-title";
       title.textContent = group.title;
       section.appendChild(title);
 
-      if (group.id === "pipeline") {
-        const list = document.createElement("ol");
-        list.className = "contents-list contents-list-stages";
-        group.items.forEach((item) => {
-          const li = document.createElement("li");
-          const a = document.createElement("a");
-          a.href = item.href;
-          const num = document.createElement("span");
-          num.className = "stage-num";
-          num.textContent = item.label;
-          a.appendChild(num);
-          a.appendChild(document.createTextNode(item.title));
-          li.appendChild(a);
-          list.appendChild(li);
-        });
-        section.appendChild(list);
-      } else {
-        const list = document.createElement("ul");
-        list.className = "contents-list";
-        group.items.forEach((item) => {
-          const li = document.createElement("li");
-          const a = document.createElement("a");
-          a.href = item.href;
-          if (item.external) a.target = "_blank";
-          a.textContent = item.label;
-          li.appendChild(a);
-          list.appendChild(li);
-        });
-        section.appendChild(list);
+      if (group.intro) {
+        const intro = document.createElement("p");
+        intro.className = "contents-group-intro";
+        intro.textContent = group.intro;
+        section.appendChild(intro);
       }
+
+      const list = document.createElement("ol");
+      list.className = "step-nav-list";
+      group.items.forEach((item) => {
+        const li = document.createElement("li");
+        li.className = "step-nav-item";
+        const a = document.createElement("a");
+        a.href = item.href;
+        if (item.external) {
+          a.target = "_blank";
+          a.rel = "noopener";
+        }
+
+        const badge = document.createElement("span");
+        badge.className = "step-badge" + (item.stageId ? "" : " step-badge-guide");
+        badge.textContent = item.stepLabel || item.step || "";
+
+        const body = document.createElement("span");
+        body.className = "step-nav-body";
+
+        const titleEl = document.createElement("span");
+        titleEl.className = "step-nav-title";
+        titleEl.textContent = item.title;
+        body.appendChild(titleEl);
+
+        if (item.desc) {
+          const descEl = document.createElement("span");
+          descEl.className = "step-nav-desc";
+          descEl.textContent = item.desc;
+          body.appendChild(descEl);
+        }
+
+        if (item.scriptLabel) {
+          const scriptEl = document.createElement("span");
+          scriptEl.className = "step-nav-script";
+          scriptEl.textContent = item.scriptLabel;
+          body.appendChild(scriptEl);
+        }
+
+        a.appendChild(badge);
+        a.appendChild(body);
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+      section.appendChild(list);
       container.appendChild(section);
     });
   }
 
   function initScrollSpy() {
-    const links = document.querySelectorAll(".nav-group-links a, .contents-list a");
+    const links = document.querySelectorAll(".step-nav-list a");
     const sections = allNavItems().map((item) => document.querySelector(item.href)).filter(Boolean);
 
     function onScroll() {
@@ -1220,20 +1331,23 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     document.querySelectorAll(".pathway-diagram").forEach((el) => {
       el.classList.toggle("hidden", el.id !== "pathway-diagram-" + pathway);
     });
-    document.querySelectorAll(".pathway-row-bash, .pathway-row-sarek, .pathway-row-array").forEach((row) => {
-      row.classList.add("hidden");
-    });
-    document.querySelectorAll(".pathway-row-" + pathway).forEach((row) => {
-      row.classList.remove("hidden");
-    });
     const cap = document.getElementById("pathway-caption");
     if (cap) {
       const text = {
-        bash: "<strong>Bash pipeline</strong> — stages below walk through <code>pipeline/*.sh</code>. Fastest first run: <code>cd test_case && ./run_demo.sh</code>.",
-        sarek: "<strong>nf-core/sarek</strong> — external Nextflow pipeline for production-scale calling. Stages 05–07 below use <em>this repo's</em> Python scripts on sarek VCF output. See <a href=\"SAREK_ALTERNATIVE.md\">SAREK_ALTERNATIVE.md</a>.",
-        array: "<strong>Array / PLINK</strong> — documented only, not runnable here. See <a href=\"DATA_TYPES_AND_WORKFLOWS.md\">DATA_TYPES_AND_WORKFLOWS.md</a>.",
+        bash: "<strong>Bash pipeline</strong> — work through the steps below. First time? See <a href=\"#getting-started\">Getting started</a> and run <code>cd test_case && ./run_demo.sh</code>.",
+        sarek: "<strong>nf-core/sarek</strong> — external Nextflow pipeline. Clinical steps below use this repo's Python scripts on sarek VCF output. See <a href=\"SAREK_ALTERNATIVE.md\">Sarek guide</a>.",
+        array: "<strong>Array / PLINK</strong> — documented only, not runnable here. Select Bash or Sarek for sequencing workflows.",
       };
       cap.innerHTML = text[pathway] || "";
+    }
+    const intro = document.getElementById("contents-intro");
+    if (intro) {
+      const introText = {
+        bash: "Read the three guide sections in order, then run the pipeline steps below.",
+        sarek: "Read the guide sections, then follow the sarek steps and shared clinical scripts.",
+        array: "Read the guide sections. Array ingestion is not implemented — see roadmap.",
+      };
+      intro.textContent = introText[pathway] || intro.textContent;
     }
     const heading = document.getElementById("stages-heading");
     if (heading) {
@@ -1266,7 +1380,6 @@ nextflow run nf-core/sarek -r 3.9.0 \\
       getActiveStages().forEach((stage) => container.appendChild(renderStage(stage)));
     }
 
-    buildTopNav(document.getElementById("nav-steps"));
     buildContentsNav(document.getElementById("contents-links"));
     initScrollSpy();
     fetchScripts().then(() => refreshAll());
@@ -1309,7 +1422,6 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     });
 
     updatePathwayOverview(activePathway);
-    buildTopNav(document.getElementById("nav-steps"));
     buildContentsNav(document.getElementById("contents-links"));
     initScrollSpy();
   }
@@ -1329,9 +1441,6 @@ nextflow run nf-core/sarek -r 3.9.0 \\
       });
     } catch (_) {}
     refreshAll();
-    if (typeof mermaid !== "undefined") {
-      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
-    }
   }
 
   init();
