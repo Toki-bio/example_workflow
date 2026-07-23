@@ -1113,27 +1113,6 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     "sarek-run": "QC, align, call, annotate in containers",
   };
 
-  const GUIDE_ITEMS = [
-    {
-      href: "#overview",
-      step: "1",
-      title: "Overview",
-      desc: "What this repo does and which engine to pick (bash, sarek, or array).",
-    },
-    {
-      href: "#getting-started",
-      step: "2",
-      title: "Getting started",
-      desc: "Clone the repo, install tools, run the built-in demo once.",
-    },
-    {
-      href: "#inputs-guide",
-      step: "3",
-      title: "Input reference",
-      desc: "Every path and setting — files you download vs tool lookup names.",
-    },
-  ];
-
   function enrichStages(stages) {
     let step = 0;
     return stages.map((stage) => {
@@ -1169,59 +1148,32 @@ nextflow run nf-core/sarek -r 3.9.0 \\
 
   function getNavGroups() {
     const stages = getActiveStages();
-    const groups = [
-      {
-        id: "guide",
-        title: "Before you run",
-        intro:
-          "Read these three pages top to bottom. They explain the layout, how to install, and every input field.",
-        items: GUIDE_ITEMS,
-      },
+    const items = [
+      { href: "#overview", title: "Overview" },
+      { href: "#getting-started", title: "Getting started" },
+      { href: "#inputs-guide", title: "Input reference" },
     ];
 
     if (activePathway !== "array") {
-      groups.push({
-        id: "pipeline",
-        title: activePathway === "sarek" ? "Sarek + clinical steps" : "Pipeline steps",
-        intro:
-          activePathway === "sarek"
-            ? "Run sarek outside this repo, then use the clinical scripts here on its VCF output."
-            : "Run in order. Each step expands below with settings, commands, and editable scripts.",
-        items: stages.map((s) => ({
+      items.push(
+        ...stages.map((s) => ({
           href: "#stage-" + s.id,
           stepLabel: s.stepLabel,
           title: s.navTitle,
           desc: s.navDesc,
           scriptLabel: s.scriptLabel,
           stageId: s.id,
-        })),
-      });
+        }))
+      );
     }
 
-    groups.push({
-      id: "more",
-      title: "Reference docs",
-      intro: "Optional reading after you have run the demo.",
-      items: [
-        { href: "#roadmap", step: "·", title: "Roadmap", desc: "Future work and known limitations." },
-        {
-          href: "SAREK_ALTERNATIVE.md",
-          step: "·",
-          title: "Sarek guide",
-          desc: "Full nf-core/sarek setup and samplesheet format.",
-          external: true,
-        },
-        {
-          href: "DATA_TYPES_AND_WORKFLOWS.md",
-          step: "·",
-          title: "Data types",
-          desc: "FASTQ, array, and workflow patterns.",
-          external: true,
-        },
-      ],
-    });
+    items.push(
+      { href: "#roadmap", title: "Roadmap" },
+      { href: "SAREK_ALTERNATIVE.md", title: "Sarek guide", external: true },
+      { href: "DATA_TYPES_AND_WORKFLOWS.md", title: "Data types", external: true }
+    );
 
-    return groups;
+    return [{ id: "toc", items }];
   }
 
   function allNavItems() {
@@ -1237,8 +1189,10 @@ nextflow run nf-core/sarek -r 3.9.0 \\
 
       const title = document.createElement("h3");
       title.className = "contents-group-title";
-      title.textContent = group.title;
-      section.appendChild(title);
+      if (group.title) {
+        title.textContent = group.title;
+        section.appendChild(title);
+      }
 
       if (group.intro) {
         const intro = document.createElement("p");
@@ -1259,9 +1213,15 @@ nextflow run nf-core/sarek -r 3.9.0 \\
           a.rel = "noopener";
         }
 
-        const badge = document.createElement("span");
-        badge.className = "step-badge" + (item.stageId ? "" : " step-badge-guide");
-        badge.textContent = item.stepLabel || item.step || "";
+        const badgeLabel = item.stepLabel || item.step;
+        if (badgeLabel) {
+          const badge = document.createElement("span");
+          badge.className = "step-badge";
+          badge.textContent = badgeLabel;
+          a.appendChild(badge);
+        } else {
+          a.classList.add("step-nav-link-plain");
+        }
 
         const body = document.createElement("span");
         body.className = "step-nav-body";
@@ -1285,7 +1245,6 @@ nextflow run nf-core/sarek -r 3.9.0 \\
           body.appendChild(scriptEl);
         }
 
-        a.appendChild(badge);
         a.appendChild(body);
         li.appendChild(a);
         list.appendChild(li);
@@ -1334,20 +1293,11 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     const cap = document.getElementById("pathway-caption");
     if (cap) {
       const text = {
-        bash: "<strong>Bash pipeline</strong> — work through the steps below. First time? See <a href=\"#getting-started\">Getting started</a> and run <code>cd test_case && ./run_demo.sh</code>.",
-        sarek: "<strong>nf-core/sarek</strong> — external Nextflow pipeline. Clinical steps below use this repo's Python scripts on sarek VCF output. See <a href=\"SAREK_ALTERNATIVE.md\">Sarek guide</a>.",
-        array: "<strong>Array / PLINK</strong> — documented only, not runnable here. Select Bash or Sarek for sequencing workflows.",
+        bash: "Demo: <code>cd test_case && ./run_demo.sh</code>",
+        sarek: "External Nextflow pipeline. See <a href=\"SAREK_ALTERNATIVE.md\">Sarek guide</a>.",
+        array: "Not implemented in this repo.",
       };
       cap.innerHTML = text[pathway] || "";
-    }
-    const intro = document.getElementById("contents-intro");
-    if (intro) {
-      const introText = {
-        bash: "Read the three guide sections in order, then run the pipeline steps below.",
-        sarek: "Read the guide sections, then follow the sarek steps and shared clinical scripts.",
-        array: "Read the guide sections. Array ingestion is not implemented — see roadmap.",
-      };
-      intro.textContent = introText[pathway] || intro.textContent;
     }
     const heading = document.getElementById("stages-heading");
     if (heading) {
@@ -1360,10 +1310,10 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     const note = document.getElementById("stages-note");
     if (note) {
       note.innerHTML = pathway === "bash"
-        ? "Work through <a href=\"#getting-started\">Getting started</a> first. Each field shows <em>Kind</em>, <em>Demo default</em>, and how to obtain values for real data."
+        ? "Each field shows <em>Kind</em>, <em>Demo default</em>, and how to obtain values for real data."
         : pathway === "sarek"
-          ? "Sarek runs outside this repo (Nextflow). Stages 05–07 are shared clinical scripts — point <code>SAREK_VCF</code> at sarek's per-sample annotated VCF."
-          : "Array ingestion is not implemented. Select <strong>Bash pipeline</strong> or <strong>nf-core/sarek</strong> for sequencing workflows.";
+          ? "Sarek runs outside this repo. Point <code>SAREK_VCF</code> at sarek's per-sample annotated VCF for stages below."
+          : "Array ingestion is not implemented. Select <strong>Bash pipeline</strong> or <strong>nf-core/sarek</strong>.";
     }
   }
 

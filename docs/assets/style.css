@@ -140,6 +140,10 @@ a { color: var(--accent); }
   background: #eff6ff;
 }
 
+.step-nav-link-plain {
+  padding-left: 0.85rem;
+}
+
 .step-badge {
   flex-shrink: 0;
   min-width: 4.5rem;
