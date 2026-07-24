@@ -4,10 +4,11 @@ channels:
   - bioconda
 dependencies:
   - python=3.11
-  - bwa
-  - samtools
-  - bcftools
-  - fastp
-  - htslib
+  # Pinned for reproducibility; adjust to match your validated environment
+  - bwa=0.7.18
+  - samtools=1.20
+  - bcftools=1.20
+  - fastp=0.23.4
+  - htslib=1.20
   # tabix/bgzip ship with htslib — do not list tabix separately (avoids dual-resolve conflicts)
   # Python stages use stdlib only (no pandas/jinja2)

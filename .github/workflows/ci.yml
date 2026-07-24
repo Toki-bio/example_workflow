@@ -34,6 +34,9 @@ jobs:
           print("clinvar_sig OK")
           PY
 
+      - name: Shellcheck pipeline scripts
+        run: shellcheck pipeline/*.sh test_case/*.sh
+
       - name: Verify tools on PATH
         shell: bash -l {0}
         run: bash pipeline/verify_tools.sh

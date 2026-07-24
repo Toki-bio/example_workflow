@@ -48,6 +48,10 @@ while IFS=$'\t' read -r sample_id sample_type r1 r2 || [[ -n "${sample_id:-}" ]]
   r1_abs="$(resolve_from_manifest "$r1")"
   r2_abs="$(resolve_from_manifest "$r2")"
   log "=== Sample $sample_id ($sample_type) ==="
+  if [[ -f "$OUT_DIR/${sample_id}.report.html" ]]; then
+    log "[$sample_id] report exists - skipping (delete to re-run)"
+    continue
+  fi
   bash "$SCRIPT_DIR/02_align.sh" "$sample_id" "$r1_abs" "$r2_abs"
   bash "$SCRIPT_DIR/03_call_variants.sh" "$sample_id"
   bash "$SCRIPT_DIR/04_annotate.sh" "$sample_id" bcftools
