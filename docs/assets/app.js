@@ -385,9 +385,9 @@
     },
     {
       id: "fullrun",
-      num: "∞",
-      title: "Full cohort run (recommended)",
-      desc: "One command: prepares reference, then for each manifest row runs align→call→annotate→filter→report, then aggregates. Prefer this over copying stages 01–07 by hand. Easiest path: cd test_case && bash run_demo.sh",
+      num: "batch",
+      title: "Batch run from a manifest",
+      desc: "After Getting started (or instead of running Align→Call→… one sample at a time): one script reads a samples.tsv and runs prepare + every sample + aggregate. Use this for a real multi-sample cohort. For the first try, prefer Getting started → bash run_demo.sh.",
       vars: ["manifest", "refFasta", "clinvarVcf", "panelGenes", "panelBed", "panelName", "threads", "outDir", "tmpDir"],
       file: "run_pipeline.sh",
       runName: "run_pipeline.sh",
@@ -651,11 +651,14 @@ python3 pipeline/06_aggregate_case_control.py \\
 
     fullrun: (s) => `${exportsBlock(s)}
 
-# Demo cohort (shipped samples.tsv):
+# Multi-sample batch (not the first-time demo — use Getting started for that).
+# Manifest: tab-separated, no header — sample_id, case|control, R1, R2
+# Relative FASTQ paths are resolved from the manifest's directory.
+
+# Example using the shipped demo table:
 bash pipeline/run_pipeline.sh test_case/samples.tsv
 
-# Your own cohort (create this file first; tab-separated, no header):
-#   sample_id   case|control   R1.fastq[.gz]   R2.fastq[.gz]
+# Your own table:
 # bash pipeline/run_pipeline.sh ${s.manifest}
 `,
 
@@ -1131,7 +1134,7 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     filter: "Filter pathogenic",
     report: "HTML report",
     aggregate: "Aggregate cohort",
-    fullrun: "Full cohort run",
+    fullrun: "Batch run from a manifest",
     "sarek-setup": "Install Nextflow",
     "sarek-samplesheet": "Prepare samplesheet",
     "sarek-run": "Run nf-core/sarek",
@@ -1163,7 +1166,7 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     filter: "Keep pathogenic / likely pathogenic",
     report: "Per-sample HTML clinical report",
     aggregate: "Case vs control counts across cohort",
-    fullrun: "One command for the whole manifest",
+    fullrun: "One script over samples.tsv (multi-sample)",
     "sarek-setup": "Install Nextflow and a container runtime",
     "sarek-samplesheet": "CSV input for nf-core/sarek",
     "sarek-run": "QC, align, call, annotate in containers",
@@ -1179,16 +1182,6 @@ nextflow run nf-core/sarek -r 3.9.0 \\
         : stage.runName && !stage.isPython
           ? stage.runName
           : null;
-
-      if (stage.id === "fullrun") {
-        return {
-          ...stage,
-          stepLabel: "Quick start",
-          navTitle,
-          navDesc,
-          scriptLabel: stage.file ? `pipeline/${stage.file}` : scriptLabel,
-        };
-      }
 
       step += 1;
       return {
