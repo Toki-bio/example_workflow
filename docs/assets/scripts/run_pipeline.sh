@@ -33,16 +33,16 @@ resolve_from_manifest() {
 
 log "Manifest: $manifest"
 log "Preparing reference (indexes if missing)"
-"$SCRIPT_DIR/01_prepare_reference.sh"
+bash "$SCRIPT_DIR/01_prepare_reference.sh"
 
 while IFS=$'\t' read -r sample_id sample_type r1 r2 || [[ -n "${sample_id:-}" ]]; do
   [[ -z "${sample_id:-}" || "$sample_id" == \#* ]] && continue
   r1_abs="$(resolve_from_manifest "$r1")"
   r2_abs="$(resolve_from_manifest "$r2")"
   log "=== Sample $sample_id ($sample_type) ==="
-  "$SCRIPT_DIR/02_align.sh" "$sample_id" "$r1_abs" "$r2_abs"
-  "$SCRIPT_DIR/03_call_variants.sh" "$sample_id"
-  "$SCRIPT_DIR/04_annotate.sh" "$sample_id" bcftools
+  bash "$SCRIPT_DIR/02_align.sh" "$sample_id" "$r1_abs" "$r2_abs"
+  bash "$SCRIPT_DIR/03_call_variants.sh" "$sample_id"
+  bash "$SCRIPT_DIR/04_annotate.sh" "$sample_id" bcftools
   python3 "$SCRIPT_DIR/05_filter_pathogenic.py" \
     "$OUT_DIR/${sample_id}.bcftools.annotated.vcf.gz" \
     "$sample_id" "$sample_type" \

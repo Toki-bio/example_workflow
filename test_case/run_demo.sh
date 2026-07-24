@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$SCRIPT_DIR"
 
-"$SCRIPT_DIR/prepare_demo.sh"
+bash "$SCRIPT_DIR/prepare_demo.sh"
 
 export REF_FASTA="$SCRIPT_DIR/refs/panel_region.fa"
 export CLINVAR_VCF="$SCRIPT_DIR/refs/clinvar_panel_subset.vcf.gz"
@@ -17,7 +17,7 @@ export PANEL_NAME="Cardiomyopathy (demo)"
 export OUT_DIR="$SCRIPT_DIR/results"
 export THREADS="${THREADS:-2}"
 
-"$REPO_ROOT/pipeline/run_pipeline.sh" "$SCRIPT_DIR/samples.tsv"
+bash "$REPO_ROOT/pipeline/run_pipeline.sh" "$SCRIPT_DIR/samples.tsv"
 
 echo
 echo "=== Demo complete ==="
