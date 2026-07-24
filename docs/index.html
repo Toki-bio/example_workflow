@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Variant pipeline — step-by-step guide</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=10">
   <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 </head>
 <body>
@@ -146,12 +146,7 @@
     <ol class="setup-steps">
       <li>
         <strong>Clone and install tools (once)</strong>
-        <pre class="inline-cmd">git clone https://github.com/Toki-bio/example_workflow.git
-cd example_workflow
-conda env create -f envs/environment.yml
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate variant-pipeline
-bash pipeline/verify_tools.sh</pre>
+        <div id="gs-install-cmd" class="gs-cmd-panel"></div>
         This installs <code>bwa</code>, <code>samtools</code>, <code>bcftools</code>, and
         <code>fastp</code> — the tools the demo actually runs. It does <em>not</em> install
         reference FASTAs, ClinVar, or snpEff. <code>GATK4</code> and <code>snpEff</code> are
@@ -161,9 +156,7 @@ bash pipeline/verify_tools.sh</pre>
       </li>
       <li>
         <strong>Run the built-in demo (no extra downloads)</strong>
-        <pre class="inline-cmd">cd test_case
-bash run_demo.sh
-python3 check_demo.py results</pre>
+        <div id="gs-demo-cmd" class="gs-cmd-panel"></div>
         Everything the demo needs is already in the repo: a tiny reference slice, synthetic FASTQs,
         a one-variant ClinVar subset, and the example panel. Outputs land in
         <code>test_case/results/</code>. Prefer this over copying stages 01–07 by hand.
@@ -391,6 +384,6 @@ python3 check_demo.py results</pre>
   <a href="https://toki-bio.github.io/example_workflow/">GitHub Pages</a>
 </footer>
 
-<script src="assets/app.js"></script>
+<script src="assets/app.js?v=10"></script>
 </body>
 </html>

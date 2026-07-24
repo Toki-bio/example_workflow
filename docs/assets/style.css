@@ -457,7 +457,11 @@ h3 { font-size: 1.05rem; margin: 0 0 0.5rem; }
   background: #475569;
 }
 
-.setup-steps .code-block-wrap {
+.setup-steps .gs-cmd-panel {
+  margin-top: 0.5rem;
+}
+
+.setup-steps .script-panel {
   margin-top: 0.5rem;
 }
 

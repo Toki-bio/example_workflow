@@ -551,6 +551,19 @@ export TMP_DIR="${s.tmpDir}"`;
   }
 
   const RUNNERS = {
+    "gs-install": () =>
+      `git clone https://github.com/Toki-bio/example_workflow.git
+cd example_workflow
+conda env create -f envs/environment.yml
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate variant-pipeline
+bash pipeline/verify_tools.sh`,
+
+    "gs-demo": () =>
+      `cd test_case
+bash run_demo.sh
+python3 check_demo.py results`,
+
     setup: () =>
       `# === Step 0: install tools (run once) ===
 # Clone if you have not already:
@@ -987,8 +1000,24 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     getActiveStages().forEach((stage) => refreshStage(stage.id));
   }
 
+  const GETTING_STARTED_PANELS = [
+    { mountId: "gs-install-cmd", panelId: "gs-install", downloadName: "install.sh" },
+    { mountId: "gs-demo-cmd", panelId: "gs-demo", downloadName: "run_demo.sh" },
+  ];
+
+  function mountGettingStartedPanels() {
+    GETTING_STARTED_PANELS.forEach(({ mountId, panelId, downloadName }) => {
+      const container = document.getElementById(mountId);
+      if (!container || container.dataset.mounted) return;
+      container.dataset.mounted = "1";
+      appendScriptEditor(container, { id: panelId, file: null, runName: downloadName }, downloadName);
+      refreshStage(panelId);
+    });
+  }
+
   function refreshAll() {
     getActiveStages().forEach((stage) => refreshStage(stage.id));
+    GETTING_STARTED_PANELS.forEach(({ panelId }) => refreshStage(panelId));
     updateFastqBadges();
     enhanceCodeBlocks(document.getElementById("pipeline-stages"));
   }
@@ -1021,7 +1050,7 @@ nextflow run nf-core/sarek -r 3.9.0 \\
 
   function enhanceCodeBlocks(root) {
     const scope = root || document;
-    scope.querySelectorAll("pre.inline-cmd, pre.workspace-layout, pre.run-block").forEach((pre) => {
+    scope.querySelectorAll("pre.workspace-layout, pre.run-block").forEach((pre) => {
       if (pre.dataset.copyEnhanced) return;
       pre.dataset.copyEnhanced = "1";
       const wrap = document.createElement("div");
@@ -1396,6 +1425,7 @@ nextflow run nf-core/sarek -r 3.9.0 \\
 
     updatePathwayOverview(activePathway);
     buildContentsNav(document.getElementById("contents-links"));
+    mountGettingStartedPanels();
     initScrollSpy();
   }
 
