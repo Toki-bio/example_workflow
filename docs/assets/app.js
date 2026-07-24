@@ -958,7 +958,6 @@ nextflow run nf-core/sarek -r 3.9.0 \\
 
   function refreshStage(id) {
     const stage = getActiveStages().find((s) => s.id === id);
-    if (!stage) return;
     if (runEls[id] && RUNNERS[id]) {
       runEls[id].textContent = RUNNERS[id](settings);
     }
@@ -968,10 +967,10 @@ nextflow run nf-core/sarek -r 3.9.0 \\
       if (saved !== undefined) textareaEls[id].value = saved;
       return;
     }
-    if (stage.file) {
+    if (stage?.file) {
       textareaEls[id].value = scriptContent(stage, settings);
-    } else if (id === "setup" || RUNNERS[id]) {
-      textareaEls[id].value = typeof RUNNERS[id] === "function" ? RUNNERS[id](settings) : RUNNERS.setup();
+    } else if (RUNNERS[id]) {
+      textareaEls[id].value = RUNNERS[id](settings);
     }
   }
 
