@@ -863,23 +863,25 @@ nextflow run nf-core/sarek -r 3.9.0 \\
       el.appendChild(varsWrap);
     }
 
-    const runSection = document.createElement("div");
-    runSection.className = "subsection";
-    runSection.innerHTML = '<div class="subsection-label">How to run</div>';
-    const runPre = document.createElement("pre");
-    runPre.className = "run-block";
-    runPre.id = "run-" + stage.id;
-    runSection.appendChild(runPre);
-    el.appendChild(runSection);
-    runEls[stage.id] = runPre;
-
     if (stage.file) {
+      const runSection = document.createElement("div");
+      runSection.className = "subsection";
+      runSection.innerHTML = '<div class="subsection-label">How to run</div>';
+      const runPre = document.createElement("pre");
+      runPre.className = "run-block";
+      runPre.id = "run-" + stage.id;
+      runSection.appendChild(runPre);
+      el.appendChild(runSection);
+      runEls[stage.id] = runPre;
+
       const scriptSection = document.createElement("div");
       scriptSection.className = "subsection";
       scriptSection.innerHTML = `<div class="subsection-label">Script: pipeline/${stage.file}</div>`;
       el.appendChild(scriptSection);
       appendScriptEditor(el, stage, `pipeline/${stage.file}`);
     } else {
+      // Command-only stages (setup, sarek-run, …): one editable block — do not duplicate
+      // the same text under both "How to run" and "Commands".
       const scriptSection = document.createElement("div");
       scriptSection.className = "subsection";
       scriptSection.innerHTML = '<div class="subsection-label">Commands</div>';
