@@ -432,7 +432,32 @@ h3 { font-size: 1.05rem; margin: 0 0 0.5rem; }
   margin-bottom: 1rem;
 }
 
-.setup-steps pre.inline-cmd {
+.code-block-wrap {
+  position: relative;
+  margin: 0.75rem 0;
+}
+
+.code-block-wrap pre {
+  margin: 0;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 2;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  background: #334155;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+}
+
+.code-copy-btn:hover {
+  background: #475569;
+}
+
+.setup-steps .code-block-wrap {
   margin-top: 0.5rem;
 }
 

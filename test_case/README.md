@@ -33,7 +33,7 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
 bash ../pipeline/verify_tools.sh
 
-./run_demo.sh
+bash run_demo.sh
 python3 check_demo.py results
 ```
 

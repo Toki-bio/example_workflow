@@ -387,7 +387,7 @@
       id: "fullrun",
       num: "∞",
       title: "Full cohort run (recommended)",
-      desc: "One command: prepares reference, then for each manifest row runs align→call→annotate→filter→report, then aggregates. Prefer this over copying stages 01–07 by hand. Easiest path: cd test_case && ./run_demo.sh",
+      desc: "One command: prepares reference, then for each manifest row runs align→call→annotate→filter→report, then aggregates. Prefer this over copying stages 01–07 by hand. Easiest path: cd test_case && bash run_demo.sh",
       vars: ["manifest", "refFasta", "clinvarVcf", "panelGenes", "panelBed", "panelName", "threads", "outDir", "tmpDir"],
       file: "run_pipeline.sh",
       runName: "run_pipeline.sh",
@@ -571,7 +571,7 @@ bash pipeline/verify_tools.sh
 # conda install -c bioconda gatk4 snpeff
 
 # Quick path after setup: run the built-in demo (no extra downloads)
-#   cd test_case && ./run_demo.sh && python3 check_demo.py results
+#   cd test_case && bash run_demo.sh && python3 check_demo.py results
 `,
 
     config: (s) => `${exportsBlock(s)}
@@ -637,7 +637,7 @@ python3 pipeline/06_aggregate_case_control.py \\
 
 # --- Easiest: synthetic demo (recommended first run) ---
 # cd test_case
-# ./run_demo.sh
+# bash run_demo.sh
 # python3 check_demo.py results
 
 # --- Or full cohort with your settings ---
@@ -990,6 +990,7 @@ nextflow run nf-core/sarek -r 3.9.0 \\
   function refreshAll() {
     getActiveStages().forEach((stage) => refreshStage(stage.id));
     updateFastqBadges();
+    enhanceCodeBlocks(document.getElementById("pipeline-stages"));
   }
 
   async function fetchScripts() {
@@ -1016,6 +1017,25 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     const orig = btn.textContent;
     btn.textContent = "Copied!";
     setTimeout(() => { btn.textContent = orig; }, 1200);
+  }
+
+  function enhanceCodeBlocks(root) {
+    const scope = root || document;
+    scope.querySelectorAll("pre.inline-cmd, pre.workspace-layout, pre.run-block").forEach((pre) => {
+      if (pre.dataset.copyEnhanced) return;
+      pre.dataset.copyEnhanced = "1";
+      const wrap = document.createElement("div");
+      wrap.className = "code-block-wrap";
+      const parent = pre.parentNode;
+      parent.insertBefore(wrap, pre);
+      wrap.appendChild(pre);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-small code-copy-btn";
+      btn.textContent = "Copy";
+      btn.addEventListener("click", () => copyText(pre.textContent.replace(/\s+$/, ""), btn));
+      wrap.appendChild(btn);
+    });
   }
 
   function downloadFile(name, content) {
@@ -1296,7 +1316,7 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     const cap = document.getElementById("pathway-caption");
     if (cap) {
       const text = {
-        bash: "Demo: <code>cd test_case && ./run_demo.sh</code>",
+        bash: "Demo: <code>cd test_case && bash run_demo.sh</code>",
         sarek: "External Nextflow pipeline. See <a href=\"SAREK_ALTERNATIVE.md\">Sarek guide</a>.",
         array: "Not implemented in this repo.",
       };
@@ -1394,6 +1414,7 @@ nextflow run nf-core/sarek -r 3.9.0 \\
       });
     } catch (_) {}
     refreshAll();
+    enhanceCodeBlocks();
   }
 
   init();

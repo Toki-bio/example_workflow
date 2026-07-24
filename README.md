@@ -60,7 +60,7 @@ conda activate variant-pipeline
 bash pipeline/verify_tools.sh
 
 cd test_case
-./run_demo.sh
+bash run_demo.sh
 python3 check_demo.py results
 ```
 
