@@ -63,9 +63,9 @@
       kind: "tool",
       bundled: "Not in the default conda env — install snpeff separately if you want gene annotation",
       what: "snpEff database name (not a file path). snpEff looks up this name in its own data/ folder to add gene symbols and consequences to VCFs.",
-      where: "After conda activate: snpEff databases (list), then snpEff download GRCh38.mane.1.2.ensembl — installs into snpEff's data/. Type the same name here. GRCh37: snpEff download GRCh37.75.",
+      where: "After installing snpeff (optional): snpEff databases | grep -i GRCh38, then snpEff download <name>. Type that exact name here. Skip entirely for ClinVar-only annotation.",
       example: "GRCh38.mane.1.2.ensembl",
-      note: "Optional. If not installed, stage 04 skips gene annotation; ClinVar still runs. Different from REF_FASTA — you don't point at a .fa file.",
+      note: "Optional. snpEff is not in the default conda env. If missing or DB not downloaded, stage 04 skips gene annotation; ClinVar still runs.",
     },
     bcftoolsPloidy: {
       label: "BCFTOOLS_PLOIDY",
@@ -73,7 +73,7 @@
       kind: "tool",
       bundled: "GRCh38 preset is built into bcftools — no download",
       what: "bcftools call --ploidy preset — tells bcftools which human chromosome naming/ploidy model to use.",
-      where: "No file to download. Run bcftools call -l to list presets. GRCh38 with hg38, GRCh37 with hg19.",
+      where: "No file to download. List presets with: bcftools call --ploidy ?   Use GRCh38 with hg38, GRCh37 with hg19.",
       example: "GRCh38",
     },
     panelGenes: {
@@ -171,11 +171,11 @@
       label: "CALLER",
       group: "sample",
       kind: "setting",
-      bundled: "bcftools (default); gatk optional secondary output in stage 03",
-      what: "Which hard-filtered VCF from stage 03 to annotate. The default pipeline uses bcftools.",
-      where: "bcftools = default. gatk = only if GATK4 is installed and you ran stage 03 with it.",
+      bundled: "bcftools (default path — always produced)",
+      what: "Which hard-filtered VCF from stage 03 to annotate. Default demo/full run uses bcftools.",
+      where: "Leave as bcftools. GATK output exists only if you installed gatk4 and stage 03 found it on PATH.",
       type: "select",
-      options: ["bcftools", "gatk"],
+      options: ["bcftools"],
     },
     manifest: {
       label: "MANIFEST_TSV",
@@ -500,12 +500,10 @@
   }
 
   function cwdPreamble() {
-    return `# Prerequisite: be inside the cloned repo (folder that contains pipeline/ and test_case/).
-# Example:
-#   cd /path/to/example_workflow
-# And have the conda env active:
-#   source "$(conda info --base)/etc/profile.d/conda.sh"
-#   conda activate variant-pipeline
+    return `REPO="$HOME/example_workflow"
+cd "$REPO"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate variant-pipeline
 `;
   }
 
@@ -552,13 +550,12 @@ export TMP_DIR="${s.tmpDir}"`;
 
   const RUNNERS = {
     "gs-install": () =>
-      `# Install into $HOME/example_workflow (avoids nested clones)
-REPO="$HOME/example_workflow"
+      `REPO="$HOME/example_workflow"
 if [[ ! -d "$REPO/.git" ]]; then
   git clone https://github.com/Toki-bio/example_workflow.git "$REPO"
 fi
 cd "$REPO"
-git pull --ff-only
+git pull origin main
 
 conda env list | awk '{print $1}' | grep -qx variant-pipeline \\
   || conda env create -f envs/environment.yml
@@ -568,8 +565,8 @@ conda activate variant-pipeline
 bash pipeline/verify_tools.sh`,
 
     "gs-demo": () =>
-      `# Must be in $HOME/example_workflow (or any clone that contains pipeline/ + test_case/)
-cd "$HOME/example_workflow"
+      `REPO="$HOME/example_workflow"
+cd "$REPO"
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
 
@@ -578,13 +575,12 @@ bash run_demo.sh
 python3 check_demo.py results`,
 
     setup: () =>
-      `# === Step 0: install tools (run once) ===
-REPO="$HOME/example_workflow"
+      `REPO="$HOME/example_workflow"
 if [[ ! -d "$REPO/.git" ]]; then
   git clone https://github.com/Toki-bio/example_workflow.git "$REPO"
 fi
 cd "$REPO"
-git pull --ff-only
+git pull origin main
 
 conda env list | awk '{print $1}' | grep -qx variant-pipeline \\
   || conda env create -f envs/environment.yml
@@ -655,46 +651,46 @@ python3 pipeline/06_aggregate_case_control.py \\
 
     fullrun: (s) => `${exportsBlock(s)}
 
-# --- Easiest: synthetic demo (recommended first run) ---
-# cd test_case
-# bash run_demo.sh
-# python3 check_demo.py results
+# Demo cohort (shipped samples.tsv):
+bash pipeline/run_pipeline.sh test_case/samples.tsv
 
-# --- Or full cohort with your settings ---
-# Manifest columns (tab-separated, no header):
+# Your own cohort (create this file first; tab-separated, no header):
 #   sample_id   case|control   R1.fastq[.gz]   R2.fastq[.gz]
-# Relative FASTQ paths are resolved from the manifest's directory.
-bash pipeline/run_pipeline.sh ${s.manifest}
+# bash pipeline/run_pipeline.sh ${s.manifest}
 `,
 
     "sarek-setup": () =>
       `# === nf-core/sarek setup (external — not in this repo) ===
-# Install Nextflow: https://www.nextflow.io/docs/latest/getstarted.html
+# Requires: Nextflow + Docker OR Singularity/Apptainer
+# Docs: https://www.nextflow.io/docs/latest/getstarted.html
+
 curl -s https://get.nextflow.io | bash
-sudo mv nextflow /usr/local/bin/   # or add to PATH
+mkdir -p "$HOME/bin"
+mv -f nextflow "$HOME/bin/nextflow"
+export PATH="$HOME/bin:$PATH"
+nextflow -version
 
-# Install Docker OR Singularity (pick one for -profile)
-
-# Smoke test — uses sarek's tiny built-in dataset
+# Smoke test (needs Docker). If you use Singularity instead:
+#   nextflow run nf-core/sarek -r 3.9.0 -profile test,singularity --outdir sarek_test
 nextflow run nf-core/sarek -r 3.9.0 -profile test,docker --outdir sarek_test
-
-# Full docs: https://nf-co.re/sarek/3.9.0/
 `,
 
     "sarek-samplesheet": (s) =>
       `# Create ${s.sarekSamplesheet} — CSV, one row per FASTQ pair:
 # patient,sample,lane,fastq_1,fastq_2
 #
-# Example (demo FASTQs in this repo):
+# Example (paths relative to where you run nextflow):
 # patient,sample,lane,fastq_1,fastq_2
-# case1,case1,L001,test_case/fastq/case1_R1.fastq.gz,test_case/fastq/case1_R2.fastq.gz
-# control1,control1,L001,test_case/fastq/control1_R1.fastq.gz,test_case/fastq/control1_R2.fastq.gz
+# case1,case1,L001,$HOME/example_workflow/test_case/fastq/case1_R1.fastq.gz,$HOME/example_workflow/test_case/fastq/case1_R2.fastq.gz
 #
-# See docs/assets/scripts/sarek_samplesheet.example.csv and SAREK_ALTERNATIVE.md
+# See SAREK_ALTERNATIVE.md and docs/assets/scripts/sarek_samplesheet.example.csv
 `,
 
     "sarek-run": (s) =>
-      `# Run from repo root (or any directory with your samplesheet)
+      `# Requires Nextflow + ${s.sarekProfile} runtime already working (see sarek-setup).
+# Run from the directory that contains your samplesheet, or use absolute --input paths.
+export PATH="$HOME/bin:$PATH"
+
 nextflow run nf-core/sarek -r 3.9.0 \\
   -profile ${s.sarekProfile} \\
   --input ${s.sarekSamplesheet} \\
@@ -702,8 +698,8 @@ nextflow run nf-core/sarek -r 3.9.0 \\
   --genome ${s.sarekGenome} \\
   --tools ${s.sarekTools}
 
-# Then use stages 05–07 below with the per-sample VCF path from sarek output.
-# Typical VCF (adjust to your --tools and sarek version):
+# Then use stages 05–07 with the per-sample annotated VCF from sarek output.
+# Example path shape (adjust to your --tools / sarek version):
 #   ${s.sarekOutDir}/variant_calling/haplotypecaller/${s.sampleId}/${s.sampleId}.haplotypecaller.vcf.gz
 `,
   };
@@ -1351,8 +1347,8 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     const cap = document.getElementById("pathway-caption");
     if (cap) {
       const text = {
-        bash: "Demo: <code>cd test_case && bash run_demo.sh</code>",
-        sarek: "External Nextflow pipeline. See <a href=\"SAREK_ALTERNATIVE.md\">Sarek guide</a>.",
+        bash: "Demo: <code>cd \"$HOME/example_workflow/test_case\" &amp;&amp; bash run_demo.sh</code>",
+        sarek: "External Nextflow + Docker/Singularity. See <a href=\"SAREK_ALTERNATIVE.md\">Sarek guide</a>.",
         array: "Not implemented in this repo.",
       };
       cap.innerHTML = text[pathway] || "";

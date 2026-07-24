@@ -54,7 +54,7 @@ if [[ ! -d "$REPO/.git" ]]; then
   git clone https://github.com/Toki-bio/example_workflow.git "$REPO"
 fi
 cd "$REPO"
-git pull --ff-only
+git pull origin main
 
 # Create env only if missing
 conda env list | awk '{print $1}' | grep -qx variant-pipeline \

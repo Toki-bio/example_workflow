@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Variant pipeline — step-by-step guide</title>
-  <link rel="stylesheet" href="assets/style.css?v=13">
+  <link rel="stylesheet" href="assets/style.css?v=14">
   <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 </head>
 <body>
@@ -99,7 +99,7 @@
     </div>
 
     <p class="diagram-caption" id="pathway-caption">
-      Demo: <code>cd test_case && bash run_demo.sh</code>
+      Demo: <code>cd "$HOME/example_workflow/test_case" && bash run_demo.sh</code>
     </p>
   </section>
 
@@ -126,13 +126,13 @@
       (relative to where you run the script, or absolute). The pipeline writes outputs to
       <code>OUT_DIR</code>, which it creates if missing — you choose that folder.
     </p>
-    <pre class="workspace-layout">~/work/example_workflow/          ← git clone (project root)
+    <pre class="workspace-layout">$HOME/example_workflow/           ← git clone (project root)
 ├── pipeline/                     ← scripts (stage 00–07, run_pipeline.sh)
 ├── test_case/                    ← demo: bash run_demo.sh from here
 ├── panels/                       ← example gene panel (shipped)
 └── test_case/results/            ← demo OUT_DIR (created on first run)
 
-/data/genomics/                   ← recommended for real WGS (outside repo, any path you like)
+/data/genomics/                   ← recommended for real WGS (outside repo)
 ├── refs/hg38.fa                  ← REF_FASTA — large, download once
 ├── clinvar/clinvar_grch38.vcf.gz ← CLINVAR_VCF — download once
 └── fastq/sample_R1.fastq.gz      ← your sequencer output</pre>
@@ -165,8 +165,11 @@
       <li>
         <strong>Move to real data (when ready)</strong> — download reference + ClinVar (see
         <a href="#inputs-guide">inputs guide</a>), put your FASTQs somewhere, write a
-        <code>samples.tsv</code> manifest, export paths (stage 00), then
-        <code>bash pipeline/run_pipeline.sh your_manifest.tsv</code>.
+        tab-separated <code>samples.tsv</code> (no header:
+        <code>sample_id</code>, <code>case|control</code>, R1, R2). From the repo root:
+        <code>bash pipeline/run_pipeline.sh samples.tsv</code>.
+        To re-run the shipped demo cohort instead:
+        <code>bash pipeline/run_pipeline.sh test_case/samples.tsv</code>.
       </li>
     </ol>
 
@@ -193,7 +196,7 @@
         <td><span class="kind-badge kind-tool">Tool lookup name</span></td>
         <td>A short name, not a path</td>
         <td>The tool finds data in its own install location after you run its download command</td>
-        <td><code>SNPEFF_DB</code> → <code>snpEff download GRCh38.mane.1.2.ensembl</code> stores DB under snpEff's <code>data/</code>. <code>BCFTOOLS_PLOIDY</code> → preset built into bcftools (<code>bcftools call -l</code>).</td>
+        <td><code>SNPEFF_DB</code> → after optional <code>conda install -c bioconda snpeff</code>: <code>snpEff databases</code> then <code>snpEff download &lt;name&gt;</code>. <code>BCFTOOLS_PLOIDY</code> → <code>bcftools call --ploidy ?</code>.</td>
       </tr>
       <tr>
         <td><span class="kind-badge kind-setting">Setting you choose</span></td>
@@ -238,8 +241,8 @@
       <tr>
         <td>GATK4, snpEff (optional)</td>
         <td>—</td>
-        <td>No — install separately if you want them</td>
-        <td><code>conda install -c bioconda gatk4 snpeff</code></td>
+        <td>Optional only — not required for the demo</td>
+        <td><code>conda install -c bioconda -c conda-forge gatk4 snpeff</code> then re-activate the env</td>
       </tr>
       <tr>
         <td>Whole-genome reference FASTA (hg38, etc.)</td>
@@ -309,9 +312,10 @@
         <td>Tool lookup name</td>
         <td><code>GRCh38.mane.1.2.ensembl</code> — <strong>not installed</strong> unless you run download</td>
         <td>
-          Not a file you browse to. After conda env: <code>snpEff databases</code> (list),
-          <code>snpEff download GRCh38.mane.1.2.ensembl</code> (installs into snpEff's
-          <code>data/</code>). Type the same name here. Optional — ClinVar annotation still runs without it.
+          Optional. First: <code>conda install -c bioconda snpeff</code>. Then
+          <code>snpEff databases | grep -i GRCh38</code> and
+          <code>snpEff download &lt;name&gt;</code>. Type that name here.
+          Demo works without snpEff (ClinVar-only annotation).
         </td>
       </tr>
       <tr>
@@ -319,7 +323,7 @@
         <td>Tool lookup name</td>
         <td><code>GRCh38</code> (built into bcftools)</td>
         <td>
-          No download. <code>bcftools call -l</code> lists presets. Match your reference:
+          No download. List presets with <code>bcftools call --ploidy ?</code>. Match your reference:
           <code>GRCh38</code> for hg38, <code>GRCh37</code> for hg19.
         </td>
       </tr>
@@ -385,6 +389,6 @@
   <a href="https://toki-bio.github.io/example_workflow/">GitHub Pages</a>
 </footer>
 
-<script src="assets/app.js?v=13"></script>
+<script src="assets/app.js?v=14"></script>
 </body>
 </html>

@@ -77,7 +77,7 @@ build-specific and must stay consistent:
 | `CLINVAR_VCF` | ClinVar release for that build (NCBI FTP: `vcf_GRCh37`, `vcf_GRCh38`, …) |
 | `PANEL_BED` / panel coordinates | Liftover or re-annotation if you change builds |
 | `SNPEFF_DB` / VEP cache | Database for that assembly |
-| `BCFTOOLS_PLOIDY` | bcftools preset (`GRCh37`, `GRCh38`, … — run `bcftools call -l`) |
+| `BCFTOOLS_PLOIDY` | bcftools preset (`GRCh37`, `GRCh38`, … — run `bcftools call --ploidy ?`) |
 
 The **shipped demo** (`test_case/`) intentionally uses a GRCh38 slice because that matches the
 original case study — it is an example, not a platform limitation. T2T and other non-GRCh
