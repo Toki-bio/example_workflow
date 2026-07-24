@@ -49,8 +49,12 @@ useful background if you're new to this space.
 ## Quick start (synthetic demo)
 
 ```bash
-git clone https://github.com/Toki-bio/example_workflow.git
-cd example_workflow
+REPO="$HOME/example_workflow"
+if [[ ! -d "$REPO/.git" ]]; then
+  git clone https://github.com/Toki-bio/example_workflow.git "$REPO"
+fi
+cd "$REPO"
+git pull --ff-only
 
 # Create env only if missing
 conda env list | awk '{print $1}' | grep -qx variant-pipeline \

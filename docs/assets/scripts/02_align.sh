@@ -53,7 +53,7 @@ fastp \
   -i "$r1" -I "$r2" \
   -o "$TMP_DIR/${sample_id}.trim_R1.fastq.gz" -O "$TMP_DIR/${sample_id}.trim_R2.fastq.gz" \
   --json "$OUT_DIR/${sample_id}.fastp.json" --html "$OUT_DIR/${sample_id}.fastp.html" \
-  --thread "$THREADS" --quiet
+  --thread "$THREADS"
 
 log "[$sample_id] bwa mem alignment"
 bwa mem -t "$THREADS" \

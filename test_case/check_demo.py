@@ -15,8 +15,18 @@ def main():
     results_dir = sys.argv[1] if len(sys.argv) > 1 else "results"
     agg_path = f"{results_dir}/aggregated_pathogenic_variants.json"
 
-    with open(agg_path) as fh:
-        aggregated = json.load(fh)
+    try:
+        with open(agg_path) as fh:
+            aggregated = json.load(fh)
+    except FileNotFoundError:
+        print(
+            f"ERROR: {agg_path} not found.\n"
+            "The demo did not finish. Fix the error from bash run_demo.sh, then re-run:\n"
+            "  bash run_demo.sh\n"
+            "  python3 check_demo.py results",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     hits = [
         v for v in aggregated

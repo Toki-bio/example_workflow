@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Variant pipeline — step-by-step guide</title>
-  <link rel="stylesheet" href="assets/style.css?v=12">
+  <link rel="stylesheet" href="assets/style.css?v=13">
   <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 </head>
 <body>
@@ -157,9 +157,10 @@
       <li>
         <strong>Run the built-in demo (no extra downloads)</strong>
         <div id="gs-demo-cmd" class="gs-cmd-panel"></div>
-        Run from the repo root that contains <code>pipeline/</code> and <code>test_case/</code>
-        (not a nested folder). Always use <code>bash run_demo.sh</code> — do not use
-        <code>./run_demo.sh</code>. Outputs land in <code>test_case/results/</code>.
+        Run from <code>$HOME/example_workflow</code> (the clone from step 1). Always use
+        <code>bash run_demo.sh</code>. Outputs land in <code>test_case/results/</code>.
+        If <code>run_demo.sh</code> prints an error, fix that first — do not run
+        <code>check_demo.py</code> until the demo finishes.
       </li>
       <li>
         <strong>Move to real data (when ready)</strong> — download reference + ClinVar (see
@@ -384,6 +385,6 @@
   <a href="https://toki-bio.github.io/example_workflow/">GitHub Pages</a>
 </footer>
 
-<script src="assets/app.js?v=12"></script>
+<script src="assets/app.js?v=13"></script>
 </body>
 </html>

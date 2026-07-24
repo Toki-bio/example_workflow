@@ -552,11 +552,14 @@ export TMP_DIR="${s.tmpDir}"`;
 
   const RUNNERS = {
     "gs-install": () =>
-      `# From an empty folder (do not clone inside an existing example_workflow/)
-git clone https://github.com/Toki-bio/example_workflow.git
-cd example_workflow
+      `# Install into $HOME/example_workflow (avoids nested clones)
+REPO="$HOME/example_workflow"
+if [[ ! -d "$REPO/.git" ]]; then
+  git clone https://github.com/Toki-bio/example_workflow.git "$REPO"
+fi
+cd "$REPO"
+git pull --ff-only
 
-# Create env only if missing (safe to re-run)
 conda env list | awk '{print $1}' | grep -qx variant-pipeline \\
   || conda env create -f envs/environment.yml
 
@@ -565,10 +568,10 @@ conda activate variant-pipeline
 bash pipeline/verify_tools.sh`,
 
     "gs-demo": () =>
-      `# From the repo root (folder that contains pipeline/ and test_case/)
-# Activate if this is a new shell:
-#   source "$(conda info --base)/etc/profile.d/conda.sh"
-#   conda activate variant-pipeline
+      `# Must be in $HOME/example_workflow (or any clone that contains pipeline/ + test_case/)
+cd "$HOME/example_workflow"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate variant-pipeline
 
 cd test_case
 bash run_demo.sh
@@ -576,11 +579,12 @@ python3 check_demo.py results`,
 
     setup: () =>
       `# === Step 0: install tools (run once) ===
-# From an empty folder:
-#   git clone https://github.com/Toki-bio/example_workflow.git
-#   cd example_workflow
-
-cd /path/to/example_workflow
+REPO="$HOME/example_workflow"
+if [[ ! -d "$REPO/.git" ]]; then
+  git clone https://github.com/Toki-bio/example_workflow.git "$REPO"
+fi
+cd "$REPO"
+git pull --ff-only
 
 conda env list | awk '{print $1}' | grep -qx variant-pipeline \\
   || conda env create -f envs/environment.yml
@@ -588,8 +592,6 @@ conda env list | awk '{print $1}' | grep -qx variant-pipeline \\
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
 bash pipeline/verify_tools.sh
-
-# Then: cd test_case && bash run_demo.sh && python3 check_demo.py results
 `,
 
     config: (s) => `${exportsBlock(s)}
