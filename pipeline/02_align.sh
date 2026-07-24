@@ -54,9 +54,12 @@ fastp \
   --json "$OUT_DIR/${sample_id}.fastp.json" --html "$OUT_DIR/${sample_id}.fastp.html" \
   --thread "$THREADS"
 
+# Portable read-group: printf turns \t into real tabs (bash "\t" in double quotes does not).
+rg_header=$(printf '@RG\tID:%s\tSM:%s\tPL:ILLUMINA\tLB:%s' "$sample_id" "$sample_id" "$sample_id")
+
 log "[$sample_id] bwa mem + fixmate + sort"
 bwa mem -t "$THREADS" \
-  -R "@RG\tID:${sample_id}\tSM:${sample_id}\tPL:ILLUMINA\tLB:${sample_id}" \
+  -R "$rg_header" \
   "$REF_FASTA" \
   "$TMP_DIR/${sample_id}.trim_R1.fastq.gz" "$TMP_DIR/${sample_id}.trim_R2.fastq.gz" \
   | samtools fixmate -@ "$THREADS" -m -u - - \
@@ -68,5 +71,7 @@ samtools markdup -@ "$THREADS" "$bam_sorted" "$bam_final"
 log "[$sample_id] index"
 samtools index -@ "$THREADS" "$bam_final"
 
-rm -f "$bam_sorted"
+rm -f "$bam_sorted" \
+  "$TMP_DIR/${sample_id}.trim_R1.fastq.gz" \
+  "$TMP_DIR/${sample_id}.trim_R2.fastq.gz"
 log "[$sample_id] alignment complete -> $bam_final"

@@ -6,15 +6,20 @@ This is the CPU-pipeline equivalent of the original `ann.sh` / `ann1.sh` scripts
 "pathogenic" (case-insensitive). Here the same selection rule is applied to the CLNSIG field
 populated by `bcftools annotate` (or VEP's --custom ClinVar) in stage 04.
 
+Whole ClinVar significance *terms* are matched (not substrings), so values like
+``Conflicting_interpretations_of_pathogenicity`` are excluded. Non-PASS FILTER records
+are dropped.
+
 Usage:
     05_filter_pathogenic.py <annotated.vcf.gz> <sample_id> <case|control> <output.jsonl>
 """
 import gzip
 import json
-import re
 import sys
+from pathlib import Path
 
-PATHOGENIC_RE = re.compile(r"pathogenic", re.IGNORECASE)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from clinvar_sig import is_pathogenic_clnsig  # noqa: E402
 
 
 def open_vcf(path):
@@ -31,6 +36,12 @@ def parse_info(info_field):
         else:
             info[kv] = True
     return info
+
+
+def is_pass_filter(filt: str) -> bool:
+    if not filt or filt in (".", "PASS"):
+        return True
+    return False
 
 
 def main():
@@ -50,10 +61,12 @@ def main():
             n_total += 1
             fields = line.rstrip("\n").split("\t")
             chrom, pos, variant_id, ref, alt, qual, filt, info_str = fields[:8]
+            if not is_pass_filter(filt):
+                continue
             info = parse_info(info_str)
 
             clnsig = info.get("CLNSIG", "")
-            if not PATHOGENIC_RE.search(clnsig):
+            if not is_pathogenic_clnsig(clnsig):
                 continue
 
             n_pathogenic += 1

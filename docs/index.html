@@ -377,6 +377,8 @@
       <li>Not validated for clinical diagnostics</li>
       <li>Linear reference only (no DRAGEN-style pangenome graphs) — any build via <code>REF_FASTA</code></li>
       <li>Default demo path uses bcftools; GATK / snpEff / VEP are optional extras</li>
+      <li>No BQSR (Base Quality Score Recalibration) on the bash path — set <code>RESTRICT_TO_PANEL=1</code> for real WGS panel calling; Sarek path includes BQSR</li>
+      <li>ClinVar CLNSIG matching uses whole terms only (avoids false hits on “conflicting interpretations of pathogenicity”)</li>
     </ul>
     <h3>Not built yet</h3>
     <ul class="compact">
@@ -392,6 +394,6 @@
   <a href="https://toki-bio.github.io/example_workflow/">GitHub Pages</a>
 </footer>
 
-<script src="assets/app.js?v=18"></script>
+<script src="assets/app.js?v=19"></script>
 </body>
 </html>

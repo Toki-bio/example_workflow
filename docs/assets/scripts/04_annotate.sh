@@ -36,10 +36,16 @@ else
   log "  snpEff download $SNPEFF_DB). Continuing with ClinVar-only annotation."
 fi
 
-log "[$sample_id] annotate with public ClinVar VCF (CLNSIG, CLNDN, CLNREVSTAT, RS)"
+log "[$sample_id] annotate with public ClinVar VCF (ID + CLNSIG/CLNDN/CLNREVSTAT[+CLNVID])"
+# Transfer annotation fields only (not CHROM/POS/REF/ALT match keys). Include CLNVID when
+# the annotation VCF defines it (real ClinVar); the demo subset may omit it.
+annotate_cols="ID,INFO/CLNSIG,INFO/CLNDN,INFO/CLNREVSTAT"
+if bcftools view -h "$CLINVAR_VCF" | grep -q 'ID=CLNVID,'; then
+  annotate_cols+=",INFO/CLNVID"
+fi
 bcftools annotate \
   -a "$CLINVAR_VCF" \
-  -c CHROM,POS,REF,ALT,ID,INFO/CLNSIG,INFO/CLNDN,INFO/CLNREVSTAT \
+  -c "$annotate_cols" \
   -Oz -o "$OUT_DIR/${sample_id}.${caller}.annotated.vcf.gz" \
   "$snpeff_input"
 tabix -f -p vcf "$OUT_DIR/${sample_id}.${caller}.annotated.vcf.gz"

@@ -23,6 +23,10 @@ _REPO_ROOT="$(cd "$_PIPELINE_DIR/.." && pwd)"
 : "${PANEL_GENES:=$_REPO_ROOT/panels/cardiomyopathy/cardiomyopathy_genes.txt}"
 : "${PANEL_NAME:=Cardiomyopathy}"                   # human-readable label, used in report titles
 
+# Set to 1 for real WGS/panel runs so callers use -T/-L PANEL_BED. Keep 0 for the synthetic
+# demo: demo FASTA contig names (demo_chr11_*) do not match the GRCh38 chrN coordinates in PANEL_BED.
+: "${RESTRICT_TO_PANEL:=0}"
+
 : "${THREADS:=8}"
 : "${OUT_DIR:=$_REPO_ROOT/test_case/results}"
 : "${TMP_DIR:=$OUT_DIR/tmp}"

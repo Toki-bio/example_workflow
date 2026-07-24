@@ -9,8 +9,5 @@ dependencies:
   - bcftools
   - fastp
   - htslib
-  - tabix
-  - pip
-  - pip:
-      - pandas
-      - jinja2
+  # tabix/bgzip ship with htslib — do not list tabix separately (avoids dual-resolve conflicts)
+  # Python stages use stdlib only (no pandas/jinja2)

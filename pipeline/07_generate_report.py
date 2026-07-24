@@ -18,11 +18,12 @@ Usage:
 import gzip
 import html
 import json
-import re
 import sys
+from pathlib import Path
 
-PATHOGENIC_RE = re.compile(r"pathogenic", re.IGNORECASE)
-BENIGN_RE = re.compile(r"benign", re.IGNORECASE)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from clinvar_sig import clinical_significance  # noqa: E402
+
 HIGH_IMPACT_CONSEQUENCES = {
     "frameshift_variant", "stop_gained", "stop_lost", "start_lost",
     "splice_acceptor_variant", "splice_donor_variant", "transcript_ablation",
@@ -66,18 +67,6 @@ def load_panel(panel_path):
         return {line.strip().upper() for line in fh if line.strip()}
 
 
-def clinical_significance(clnsig):
-    if not clnsig:
-        return "unknown"
-    if PATHOGENIC_RE.search(clnsig):
-        return "likely_pathogenic" if "likely" in clnsig.lower() else "pathogenic"
-    if BENIGN_RE.search(clnsig):
-        return "likely_benign" if "likely" in clnsig.lower() else "benign"
-    if "uncertain" in clnsig.lower():
-        return "uncertain"
-    return "unknown"
-
-
 SIG_STYLE = {
     "pathogenic": ("Pathogenic", "#d9534f"),
     "likely_pathogenic": ("Likely Pathogenic", "#f0ad4e"),
@@ -92,9 +81,16 @@ IMPACT_STYLE = {
 }
 
 
+def is_pass_filter(filt: str) -> bool:
+    if not filt or filt in (".", "PASS"):
+        return True
+    return False
+
+
 def should_include(gene, impact, sig, panel_genes):
+    # Never show Benign / Likely benign (including panel genes).
     if sig in ("benign", "likely_benign"):
-        return gene.upper() in panel_genes and False  # never show benign panel hits either
+        return False
     if sig in ("pathogenic", "likely_pathogenic", "uncertain"):
         return True
     if gene.upper() in panel_genes:
@@ -112,6 +108,8 @@ def build_rows(vcf_path, panel_genes):
                 continue
             fields = line.rstrip("\n").split("\t")
             chrom, pos, variant_id, ref, alt, qual, filt, info_str = fields[:8]
+            if not is_pass_filter(filt):
+                continue
             info = parse_info(info_str)
             ann = parse_ann(info)
             clnsig = info.get("CLNSIG", "")
@@ -125,6 +123,13 @@ def build_rows(vcf_path, panel_genes):
                 sample_fields = fields[9].split(":")
                 genotype = sample_fields[0] if sample_fields else ""
 
+            clnvid = info.get("CLNVID", "")
+            clinvar_id = ""
+            if clnvid and clnvid != ".":
+                clinvar_id = clnvid.split("|")[0]
+            elif variant_id and variant_id != ".":
+                clinvar_id = variant_id
+
             rows.append({
                 "gene": ann["gene"] or "Unknown",
                 "in_panel": ann["gene"].upper() in panel_genes,
@@ -133,7 +138,7 @@ def build_rows(vcf_path, panel_genes):
                 "consequence": ann["consequence"],
                 "impact": ann["impact"] or "MODIFIER",
                 "significance": sig,
-                "clinvar_id": variant_id if variant_id != "." else "",
+                "clinvar_id": clinvar_id,
                 "clinvar_phenotypes": info.get("CLNDN", "").replace("_", " "),
                 "genotype": genotype,
                 "quality": qual,

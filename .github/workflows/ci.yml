@@ -16,6 +16,24 @@ jobs:
           environment-file: envs/environment.yml
           activate-environment: variant-pipeline
 
+      - name: Lint pipeline scripts
+        shell: bash -l {0}
+        run: |
+          python3 -m py_compile pipeline/clinvar_sig.py \
+            pipeline/05_filter_pathogenic.py \
+            pipeline/06_aggregate_case_control.py \
+            pipeline/07_generate_report.py \
+            test_case/check_demo.py
+          python3 - <<'PY'
+          from pipeline.clinvar_sig import is_pathogenic_clnsig, clinical_significance
+          assert is_pathogenic_clnsig("Pathogenic")
+          assert is_pathogenic_clnsig("Likely_pathogenic")
+          assert is_pathogenic_clnsig("Pathogenic/Likely_pathogenic")
+          assert not is_pathogenic_clnsig("Conflicting_interpretations_of_pathogenicity")
+          assert clinical_significance("Conflicting_interpretations_of_pathogenicity") == "unknown"
+          print("clinvar_sig OK")
+          PY
+
       - name: Verify tools on PATH
         shell: bash -l {0}
         run: bash pipeline/verify_tools.sh

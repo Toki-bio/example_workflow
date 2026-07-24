@@ -37,6 +37,14 @@ bash "$SCRIPT_DIR/01_prepare_reference.sh"
 
 while IFS=$'\t' read -r sample_id sample_type r1 r2 || [[ -n "${sample_id:-}" ]]; do
   [[ -z "${sample_id:-}" || "$sample_id" == \#* ]] && continue
+  if [[ ! "$sample_id" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "ERROR: unsafe sample_id (use only letters, digits, . _ -): $sample_id" >&2
+    exit 1
+  fi
+  if [[ "$sample_type" != "case" && "$sample_type" != "control" ]]; then
+    echo "ERROR: sample_type must be case or control, got: $sample_type" >&2
+    exit 1
+  fi
   r1_abs="$(resolve_from_manifest "$r1")"
   r2_abs="$(resolve_from_manifest "$r2")"
   log "=== Sample $sample_id ($sample_type) ==="
