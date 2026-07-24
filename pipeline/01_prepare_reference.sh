@@ -13,7 +13,7 @@ if [[ ! -f "$REF_FASTA" ]]; then
   echo "ERROR: reference FASTA not found at $REF_FASTA" >&2
   echo "Set REF_FASTA to your reference FASTA (GRCh37/hg19, GRCh38/hg38, T2T-CHM13, etc.)." >&2
   echo "ClinVar VCF, panel BED, snpEff DB, and bcftools --ploidy must use the same build." >&2
-  echo "For the synthetic demo: cd test_case && ./run_demo.sh" >&2
+  echo "For the synthetic demo: cd test_case && bash run_demo.sh" >&2
   exit 1
 fi
 

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Variant pipeline — step-by-step guide</title>
-  <link rel="stylesheet" href="assets/style.css?v=11">
+  <link rel="stylesheet" href="assets/style.css?v=12">
   <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 </head>
 <body>
@@ -128,7 +128,7 @@
     </p>
     <pre class="workspace-layout">~/work/example_workflow/          ← git clone (project root)
 ├── pipeline/                     ← scripts (stage 00–07, run_pipeline.sh)
-├── test_case/                    ← demo: run ./run_demo.sh from here
+├── test_case/                    ← demo: bash run_demo.sh from here
 ├── panels/                       ← example gene panel (shipped)
 └── test_case/results/            ← demo OUT_DIR (created on first run)
 
@@ -157,9 +157,9 @@
       <li>
         <strong>Run the built-in demo (no extra downloads)</strong>
         <div id="gs-demo-cmd" class="gs-cmd-panel"></div>
-        Everything the demo needs is already in the repo: a tiny reference slice, synthetic FASTQs,
-        a one-variant ClinVar subset, and the example panel. Outputs land in
-        <code>test_case/results/</code>. Prefer this over copying stages 01–07 by hand.
+        Run from the repo root that contains <code>pipeline/</code> and <code>test_case/</code>
+        (not a nested folder). Always use <code>bash run_demo.sh</code> — do not use
+        <code>./run_demo.sh</code>. Outputs land in <code>test_case/results/</code>.
       </li>
       <li>
         <strong>Move to real data (when ready)</strong> — download reference + ClinVar (see
@@ -384,6 +384,6 @@
   <a href="https://toki-bio.github.io/example_workflow/">GitHub Pages</a>
 </footer>
 
-<script src="assets/app.js?v=11"></script>
+<script src="assets/app.js?v=12"></script>
 </body>
 </html>

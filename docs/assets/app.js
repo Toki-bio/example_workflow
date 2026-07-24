@@ -552,39 +552,44 @@ export TMP_DIR="${s.tmpDir}"`;
 
   const RUNNERS = {
     "gs-install": () =>
-      `git clone https://github.com/Toki-bio/example_workflow.git
+      `# From an empty folder (do not clone inside an existing example_workflow/)
+git clone https://github.com/Toki-bio/example_workflow.git
 cd example_workflow
-conda env create -f envs/environment.yml
+
+# Create env only if missing (safe to re-run)
+conda env list | awk '{print $1}' | grep -qx variant-pipeline \\
+  || conda env create -f envs/environment.yml
+
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
 bash pipeline/verify_tools.sh`,
 
     "gs-demo": () =>
-      `cd test_case
+      `# From the repo root (folder that contains pipeline/ and test_case/)
+# Activate if this is a new shell:
+#   source "$(conda info --base)/etc/profile.d/conda.sh"
+#   conda activate variant-pipeline
+
+cd test_case
 bash run_demo.sh
 python3 check_demo.py results`,
 
     setup: () =>
       `# === Step 0: install tools (run once) ===
-# Clone if you have not already:
+# From an empty folder:
 #   git clone https://github.com/Toki-bio/example_workflow.git
+#   cd example_workflow
+
 cd /path/to/example_workflow
 
-# Create env (skip if it already exists)
-conda env create -f envs/environment.yml
+conda env list | awk '{print $1}' | grep -qx variant-pipeline \\
+  || conda env create -f envs/environment.yml
 
-# Activate (needed in every new shell)
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
-
-# Verify required tools (bwa samtools bcftools fastp tabix bgzip python3)
 bash pipeline/verify_tools.sh
 
-# Optional: GATK secondary caller, snpEff gene annotation
-# conda install -c bioconda gatk4 snpeff
-
-# Quick path after setup: run the built-in demo (no extra downloads)
-#   cd test_case && bash run_demo.sh && python3 check_demo.py results
+# Then: cd test_case && bash run_demo.sh && python3 check_demo.py results
 `,
 
     config: (s) => `${exportsBlock(s)}

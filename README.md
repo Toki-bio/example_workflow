@@ -52,11 +52,12 @@ useful background if you're new to this space.
 git clone https://github.com/Toki-bio/example_workflow.git
 cd example_workflow
 
-conda env create -f envs/environment.yml
+# Create env only if missing
+conda env list | awk '{print $1}' | grep -qx variant-pipeline \
+  || conda env create -f envs/environment.yml
+
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
-
-# Confirm tools are on PATH (do NOT run bare `bwa` — that only prints usage help)
 bash pipeline/verify_tools.sh
 
 cd test_case
