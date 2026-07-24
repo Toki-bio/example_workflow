@@ -22,6 +22,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from clinvar_sig import is_pathogenic_clnsig  # noqa: E402
 
 
+def extract_gene(info):
+    """Extract gene name from ANN or GENEINFO, handling short/malformed fields."""
+    if "ANN" in info:
+        parts = info["ANN"].split("|")
+        if len(parts) > 3:
+            return parts[3]
+        return ""
+    if "GENEINFO" in info:
+        return info["GENEINFO"].split(":")[0]
+    return ""
+
+
 def open_vcf(path):
     opener = gzip.open if path.endswith(".gz") else open
     return opener(path, "rt")
@@ -54,12 +66,16 @@ def main():
 
     n_total = 0
     n_pathogenic = 0
+    n_skipped = 0
     with open_vcf(vcf_path) as fh, open(out_path, "w") as out:
         for line in fh:
             if line.startswith("#"):
                 continue
             n_total += 1
             fields = line.rstrip("\n").split("\t")
+            if len(fields) < 8:
+                n_skipped += 1
+                continue
             chrom, pos, variant_id, ref, alt, qual, filt, info_str = fields[:8]
             if not is_pass_filter(filt):
                 continue
@@ -83,12 +99,15 @@ def main():
                 "clinvar_significance": clnsig,
                 "clinvar_phenotypes": info.get("CLNDN", ""),
                 "clinvar_review_status": info.get("CLNREVSTAT", ""),
-                "gene": info.get("ANN", "").split("|")[3] if "ANN" in info else info.get("GENEINFO", "").split(":")[0],
+                "gene": extract_gene(info),
             }
             out.write(json.dumps(record) + "\n")
 
     print(f"[{sample_id}] {n_pathogenic} pathogenic/likely-pathogenic positions "
           f"out of {n_total} total records -> {out_path}", file=sys.stderr)
+    if n_skipped:
+        print(f"[{sample_id}] WARNING: skipped {n_skipped} malformed VCF lines (< 8 fields)",
+              file=sys.stderr)
 
 
 if __name__ == "__main__":

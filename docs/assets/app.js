@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "variant-pipeline-guide-v4";
+  const STORAGE_KEY = "variant-pipeline-guide-v5";
   const SCRIPTS_BASE = "assets/scripts/";
 
   const DEFAULTS = {
@@ -9,7 +9,7 @@
     clinvarVcf: "test_case/refs/clinvar_panel_subset.vcf.gz",
     panelGenes: "panels/cardiomyopathy/cardiomyopathy_genes.txt",
     panelBed: "panels/cardiomyopathy/cardiomyopathy_genes_grch38.bed",
-    panelName: "Cardiomyopathy (demo)",
+    panelName: "Cardiomyopathy",
     snpeffDb: "GRCh38.mane.1.2.ensembl",
     bcftoolsPloidy: "GRCh38",
     sampleId: "case1",
@@ -20,6 +20,7 @@
     outDir: "test_case/results",
     tmpDir: "test_case/results/tmp",
     manifest: "test_case/samples.tsv",
+    restrictToPanel: "0",
     caller: "bcftools",
     sarekSamplesheet: "samplesheet.csv",
     sarekOutDir: "sarek_results",
@@ -107,7 +108,7 @@
       label: "THREADS",
       group: "runtime",
       kind: "setting",
-      bundled: "No default file — typical value 8 (demo uses 2)",
+      bundled: "Default 8; set to available cores (8-32 typical)",
       what: "CPU thread count for bwa, samtools, bcftools, fastp.",
       where: "Set to available cores on your machine (8–32 typical).",
       example: "8",
@@ -167,15 +168,25 @@
       where: "Same rules as R1.",
       example: "/data/fastq/sample_R2.fastq.gz",
     },
+    restrictToPanel: {
+      label: "RESTRICT_TO_PANEL",
+      group: "runtime",
+      kind: "setting",
+      bundled: "0 (demo) - set to 1 for real WGS panel calling",
+      what: "When 1, variant calling is restricted to PANEL_BED regions. Recommended for real WGS to reduce noise and runtime.",
+      where: "Leave 0 for the demo (demo FASTA contig names don't match the GRCh38 BED). Set to 1 when using a real reference that matches your panel BED.",
+      example: "1",
+      note: "Demo FASTA uses demo_chr11_* contig names; the shipped BED has GRCh38 chrN coordinates. They only match on a real reference.",
+    },
     caller: {
       label: "CALLER",
       group: "sample",
       kind: "setting",
       bundled: "bcftools (default path — always produced)",
       what: "Which hard-filtered VCF from stage 03 to annotate. Default demo/full run uses bcftools.",
-      where: "Leave as bcftools. GATK output exists only if you installed gatk4 and stage 03 found it on PATH.",
+      where: "Leave as bcftools. Switch to gatk only if you installed gatk4 and stage 03 produced GATK output.",
       type: "select",
-      options: ["bcftools"],
+      options: ["bcftools", "gatk"],
     },
     manifest: {
       label: "MANIFEST_TSV",
@@ -312,7 +323,7 @@
       num: "00",
       title: "Shared configuration",
       desc: "Every pipeline/*.sh script sources 00_config.sh. Defaults already point at the demo files inside this repo (resolved from the script location, not your shell cwd). Override with export for real data.",
-      vars: ["refFasta", "clinvarVcf", "snpeffDb", "bcftoolsPloidy", "panelGenes", "panelBed", "panelName", "threads", "outDir", "tmpDir"],
+      vars: ["refFasta", "clinvarVcf", "snpeffDb", "bcftoolsPloidy", "panelGenes", "panelBed", "panelName", "threads", "restrictToPanel", "outDir", "tmpDir"],
       file: "00_config.sh",
       personalize: "config",
       runName: "00_config.sh",
@@ -340,7 +351,7 @@
       num: "03",
       title: "Call variants",
       desc: "Requires stage 02 BAM. bcftools mpileup+call (primary). GATK4 runs only if gatk is on PATH.",
-      vars: ["sampleId", "refFasta", "bcftoolsPloidy", "threads", "outDir", "tmpDir"],
+      vars: ["sampleId", "refFasta", "bcftoolsPloidy", "threads", "restrictToPanel", "panelBed", "outDir", "tmpDir"],
       file: "03_call_variants.sh",
       runName: "03_call_variants.sh",
     },
@@ -388,7 +399,7 @@
       num: "batch",
       title: "Batch run from a manifest",
       desc: "After Getting started (or instead of running Align→Call→… one sample at a time): one script reads a samples.tsv and runs prepare + every sample + aggregate. Use this for a real multi-sample cohort. For the first try, prefer Getting started → bash run_demo.sh.",
-      vars: ["manifest", "refFasta", "clinvarVcf", "panelGenes", "panelBed", "panelName", "threads", "outDir", "tmpDir"],
+      vars: ["manifest", "refFasta", "clinvarVcf", "panelGenes", "panelBed", "panelName", "threads", "restrictToPanel", "outDir", "tmpDir"],
       file: "run_pipeline.sh",
       runName: "run_pipeline.sh",
     },
@@ -517,6 +528,7 @@ export PANEL_NAME="${s.panelName}"
 export SNPEFF_DB="${s.snpeffDb}"
 export BCFTOOLS_PLOIDY="${s.bcftoolsPloidy}"
 export THREADS=${s.threads}
+export RESTRICT_TO_PANEL=${s.restrictToPanel}
 export OUT_DIR="${s.outDir}"
 export TMP_DIR="${s.tmpDir}"`;
   }
@@ -533,6 +545,7 @@ export TMP_DIR="${s.tmpDir}"`;
       PANEL_GENES: s.panelGenes,
       PANEL_NAME: s.panelName,
       THREADS: s.threads,
+      RESTRICT_TO_PANEL: s.restrictToPanel,
       OUT_DIR: s.outDir,
       TMP_DIR: s.tmpDir,
     };
@@ -1033,8 +1046,16 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     const files = getActiveStages().map((s) => s.file).filter(Boolean);
     await Promise.all(
       files.map(async (file) => {
-        const res = await fetch(SCRIPTS_BASE + file);
-        if (res.ok) scriptBodies[file] = await res.text();
+        try {
+          const res = await fetch(SCRIPTS_BASE + file);
+          if (res.ok) {
+            scriptBodies[file] = await res.text();
+          } else {
+            console.warn(`Failed to load ${SCRIPTS_BASE}${file}: HTTP ${res.status}`);
+          }
+        } catch (err) {
+          console.warn(`Failed to load ${SCRIPTS_BASE}${file}:`, err);
+        }
       })
     );
   }
@@ -1184,10 +1205,12 @@ nextflow run nf-core/sarek -r 3.9.0 \\
           : null;
 
       step += 1;
+      // Badge shows script file prefix (e.g. 05, 07) not sequential step number
+      // so users can match UI stages to files in pipeline/ directory.
       return {
         ...stage,
         step,
-        stepLabel: `Step ${step}`,
+        stepLabel: stage.num && stage.num.length <= 3 ? stage.num : `Step ${step}`,
         navTitle,
         navDesc,
         scriptLabel,

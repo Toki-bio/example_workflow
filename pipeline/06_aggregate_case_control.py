@@ -28,6 +28,7 @@ def main():
 
     jsonl_glob, out_path = sys.argv[1:3]
     groups = defaultdict(list)
+    n_malformed = 0
 
     for path in sorted(glob.glob(jsonl_glob)):
         with open(path) as fh:
@@ -35,7 +36,12 @@ def main():
                 line = line.strip()
                 if not line:
                     continue
-                rec = json.loads(line)
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    n_malformed += 1
+                    print(f"WARNING: skipping malformed JSONL line in {path}", file=sys.stderr)
+                    continue
                 groups[variant_key(rec)].append(rec)
 
     aggregated = []
@@ -63,6 +69,8 @@ def main():
         json.dump(aggregated, out, indent=2)
 
     print(f"{len(aggregated)} distinct pathogenic variants aggregated -> {out_path}", file=sys.stderr)
+    if n_malformed:
+        print(f"WARNING: {n_malformed} malformed JSONL lines were skipped", file=sys.stderr)
 
 
 if __name__ == "__main__":

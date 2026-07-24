@@ -71,6 +71,9 @@ samtools markdup -@ "$THREADS" "$bam_sorted" "$bam_final"
 log "[$sample_id] index"
 samtools index -@ "$THREADS" "$bam_final"
 
+log "[$sample_id] post-alignment QC (flagstat)"
+samtools flagstat "$bam_final" | tee "$OUT_DIR/${sample_id}.flagstat.txt"
+
 rm -f "$bam_sorted" \
   "$TMP_DIR/${sample_id}.trim_R1.fastq.gz" \
   "$TMP_DIR/${sample_id}.trim_R2.fastq.gz"
