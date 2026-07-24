@@ -64,6 +64,14 @@ cd test_case
 python3 check_demo.py results
 ```
 
+If you already have a conda env with most tools (e.g. `bwa`, `samtools`, `bcftools`), install
+what is missing instead of creating a new env — typically GATK4:
+
+```bash
+conda install -c bioconda -c conda-forge gatk4
+bash pipeline/verify_tools.sh
+```
+
 This aligns two small synthetic samples against a ~48kb slice of real GRCh38 sequence (MYBPC3
 + MYH7), calls variants, annotates against a real published ClinVar pathogenic variant, and
 generates an interactive HTML clinical report per sample — end to end in well under a minute,

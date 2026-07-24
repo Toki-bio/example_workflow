@@ -12,7 +12,6 @@ dependencies:
   - snpsift=5.2
   - fastp=0.23.*
   - fastqc=0.12.*
-  - dwgsim=0.1.13
   - htslib=1.20
   - tabix
   - jq

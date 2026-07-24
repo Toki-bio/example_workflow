@@ -37,7 +37,8 @@ python3 --version
 if [[ "$missing" -ne 0 ]]; then
   echo
   echo "ERROR: one or more required tools are missing." >&2
-  echo "Install with: conda env create -f envs/environment.yml && conda activate variant-pipeline" >&2
+  echo "Full env:  conda env create -f envs/environment.yml && conda activate variant-pipeline" >&2
+  echo "Or add to current env: conda install -c bioconda -c conda-forge gatk4 fastp" >&2
   exit 1
 fi
 
