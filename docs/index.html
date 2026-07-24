@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Variant pipeline — step-by-step guide</title>
-  <link rel="stylesheet" href="assets/style.css?v=15">
+  <link rel="stylesheet" href="assets/style.css?v=16">
   <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 </head>
 <body>
@@ -12,9 +12,14 @@
 <nav class="site-nav">
   <div class="site-nav-inner">
     <a class="brand" href="#top">example_workflow</a>
-    <a class="site-nav-jump" href="#steps-nav">Go to steps</a>
   </div>
 </nav>
+
+<div class="page-layout">
+  <aside class="side-nav" id="steps-nav" aria-label="On this page">
+    <div class="side-nav-title">On this page</div>
+    <div class="side-nav-links" id="contents-links"></div>
+  </aside>
 
 <main id="top">
   <h1>Germline variant-calling pipeline</h1>
@@ -102,12 +107,6 @@
       Demo: <code>cd "$HOME/example_workflow/test_case" && bash run_demo.sh</code>
     </p>
   </section>
-
-  <nav class="contents-nav" id="steps-nav" aria-label="On this page">
-    <div class="contents-title">On this page</div>
-    <div class="contents-links" id="contents-links"></div>
-  </nav>
-
 
   <section class="getting-started" id="getting-started">
     <h2>Getting started: where it runs, working folder, what's included</h2>
@@ -383,12 +382,13 @@
     </ul>
   </section>
 </main>
+</div>
 
 <footer>
   <a href="https://github.com/Toki-bio/example_workflow">GitHub</a> ·
   <a href="https://toki-bio.github.io/example_workflow/">GitHub Pages</a>
 </footer>
 
-<script src="assets/app.js?v=15"></script>
+<script src="assets/app.js?v=16"></script>
 </body>
 </html>

@@ -1238,30 +1238,12 @@ nextflow run nf-core/sarek -r 3.9.0 \\
 
   function buildContentsNav(container) {
     container.innerHTML = "";
+    const list = document.createElement("ul");
+    list.className = "side-nav-list";
+
     getNavGroups().forEach((group) => {
-      const section = document.createElement("section");
-      section.className = "contents-group";
-      if (group.id === "pipeline") section.classList.add("contents-group-pipeline");
-
-      const title = document.createElement("h3");
-      title.className = "contents-group-title";
-      if (group.title) {
-        title.textContent = group.title;
-        section.appendChild(title);
-      }
-
-      if (group.intro) {
-        const intro = document.createElement("p");
-        intro.className = "contents-group-intro";
-        intro.textContent = group.intro;
-        section.appendChild(intro);
-      }
-
-      const list = document.createElement("ol");
-      list.className = "step-nav-list";
       group.items.forEach((item) => {
         const li = document.createElement("li");
-        li.className = "step-nav-item";
         const a = document.createElement("a");
         a.href = item.href;
         if (item.external) {
@@ -1269,49 +1251,27 @@ nextflow run nf-core/sarek -r 3.9.0 \\
           a.rel = "noopener";
         }
 
-        const badgeLabel = item.stepLabel || item.step;
-        if (badgeLabel) {
-          const badge = document.createElement("span");
-          badge.className = "step-badge";
-          badge.textContent = badgeLabel;
-          a.appendChild(badge);
-        } else {
-          a.classList.add("step-nav-link-plain");
+        if (item.stepLabel) {
+          const num = document.createElement("span");
+          num.className = "side-nav-num";
+          num.textContent = item.stepLabel.replace(/^Step\s+/i, "");
+          a.appendChild(num);
         }
 
-        const body = document.createElement("span");
-        body.className = "step-nav-body";
-
-        const titleEl = document.createElement("span");
-        titleEl.className = "step-nav-title";
-        titleEl.textContent = item.title;
-        body.appendChild(titleEl);
-
-        if (item.desc) {
-          const descEl = document.createElement("span");
-          descEl.className = "step-nav-desc";
-          descEl.textContent = item.desc;
-          body.appendChild(descEl);
-        }
-
-        if (item.scriptLabel) {
-          const scriptEl = document.createElement("span");
-          scriptEl.className = "step-nav-script";
-          scriptEl.textContent = item.scriptLabel;
-          body.appendChild(scriptEl);
-        }
-
-        a.appendChild(body);
+        const label = document.createElement("span");
+        label.className = "side-nav-label";
+        label.textContent = item.title;
+        a.appendChild(label);
         li.appendChild(a);
         list.appendChild(li);
       });
-      section.appendChild(list);
-      container.appendChild(section);
     });
+
+    container.appendChild(list);
   }
 
   function initScrollSpy() {
-    const links = document.querySelectorAll(".step-nav-list a");
+    const links = document.querySelectorAll(".side-nav-list a");
     const sections = allNavItems().map((item) => document.querySelector(item.href)).filter(Boolean);
 
     function onScroll() {
