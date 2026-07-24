@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Variant pipeline — step-by-step guide</title>
-  <link rel="stylesheet" href="assets/style.css?v=16">
+  <link rel="stylesheet" href="assets/style.css?v=17">
   <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 </head>
 <body>
@@ -136,9 +136,9 @@
 ├── clinvar/clinvar_grch38.vcf.gz ← CLINVAR_VCF — download once
 └── fastq/sample_R1.fastq.gz      ← your sequencer output</pre>
     <p class="guide-note">
-      <strong>Tip:</strong> keep multi-gigabyte reference files outside the git repo. Point
-      <code>REF_FASTA</code> and <code>CLINVAR_VCF</code> at them with absolute paths, or export
-      those variables before running (see stage 00).
+      <strong>Tip:</strong> keep multi-gigabyte reference and ClinVar files outside the git repo.
+      Point <code>REF_FASTA</code> and <code>CLINVAR_VCF</code> at them with absolute paths
+      (Shared configuration / exports), then run the pipeline.
     </p>
 
     <h3>Start here: demo first, real data second</h3>
@@ -372,13 +372,16 @@
   <div id="pipeline-stages"></div>
 
   <section id="roadmap">
-    <h2>Roadmap</h2>
+    <h2>Limitations</h2>
     <ul class="compact">
-      <li><a href="SAREK_ALTERNATIVE.md">nf-core/sarek</a> — alternative sequencing engine (Nextflow); clinical stages 05–07 shared</li>
-      <li>Array / PLINK ingestion path (documented, not built)</li>
-      <li>Pluggable callers (DeepVariant) in bash pipeline</li>
-      <li>Linear reference only (no DRAGEN pangenome graphs) — any build via <code>REF_FASTA</code> (GRCh37, GRCh38, T2T, …); demo defaults to GRCh38</li>
       <li>Not validated for clinical diagnostics</li>
+      <li>Linear reference only (no DRAGEN-style pangenome graphs) — any build via <code>REF_FASTA</code></li>
+      <li>Default demo path uses bcftools; GATK / snpEff / VEP are optional extras</li>
+    </ul>
+    <h3>Not built yet</h3>
+    <ul class="compact">
+      <li>Array / PLINK ingestion (documented only — see pathway tab)</li>
+      <li>Pluggable callers such as DeepVariant in the bash pipeline</li>
     </ul>
   </section>
 </main>
@@ -389,6 +392,6 @@
   <a href="https://toki-bio.github.io/example_workflow/">GitHub Pages</a>
 </footer>
 
-<script src="assets/app.js?v=16"></script>
+<script src="assets/app.js?v=17"></script>
 </body>
 </html>

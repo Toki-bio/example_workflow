@@ -1224,7 +1224,7 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     }
 
     items.push(
-      { href: "#roadmap", title: "Roadmap" },
+      { href: "#roadmap", title: "Limitations" },
       { href: "SAREK_ALTERNATIVE.md", title: "Sarek guide", external: true },
       { href: "DATA_TYPES_AND_WORKFLOWS.md", title: "Data types", external: true }
     );
