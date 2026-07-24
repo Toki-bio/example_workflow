@@ -6,8 +6,8 @@
 #         (run from anywhere; no working-directory requirement)
 set -euo pipefail
 
-REQUIRED=(bwa samtools bcftools gatk fastp tabix bgzip python3)
-OPTIONAL=(snpEff vep)
+REQUIRED=(bwa samtools bcftools fastp tabix bgzip python3)
+OPTIONAL=(gatk snpEff vep)
 
 missing=0
 
@@ -38,7 +38,7 @@ if [[ "$missing" -ne 0 ]]; then
   echo
   echo "ERROR: one or more required tools are missing." >&2
   echo "Full env:  conda env create -f envs/environment.yml && conda activate variant-pipeline" >&2
-  echo "Or add to current env: conda install -c bioconda -c conda-forge gatk4 fastp" >&2
+  echo "Required:  bwa samtools bcftools fastp tabix bgzip python3" >&2
   exit 1
 fi
 

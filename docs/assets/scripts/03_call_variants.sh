@@ -32,23 +32,31 @@ bcftools filter \
   "$OUT_DIR/${sample_id}.bcftools.vcf.gz"
 tabix -f -p vcf "$OUT_DIR/${sample_id}.bcftools.hard-filtered.vcf.gz"
 
-# --- Secondary caller: GATK4 HaplotypeCaller ---
-log "[$sample_id] GATK4 HaplotypeCaller"
-gatk HaplotypeCaller \
-  -R "$REF_FASTA" \
-  -I "$bam" \
-  -O "$OUT_DIR/${sample_id}.gatk.vcf.gz" \
-  --quiet
+# --- Secondary caller: GATK4 HaplotypeCaller (optional cross-check) ---
+if command -v gatk >/dev/null 2>&1; then
+  log "[$sample_id] GATK4 HaplotypeCaller"
+  gatk HaplotypeCaller \
+    -R "$REF_FASTA" \
+    -I "$bam" \
+    -O "$OUT_DIR/${sample_id}.gatk.vcf.gz" \
+    --quiet
 
-log "[$sample_id] GATK hard filter -> PASS-only (approximating DRAGEN/GATK best-practice defaults)"
-gatk VariantFiltration \
-  -R "$REF_FASTA" \
-  -V "$OUT_DIR/${sample_id}.gatk.vcf.gz" \
-  --filter-expression "QD < 2.0" --filter-name "QD2" \
-  --filter-expression "FS > 60.0" --filter-name "FS60" \
-  --filter-expression "MQ < 40.0" --filter-name "MQ40" \
-  --filter-expression "DP < 10" --filter-name "DP10" \
-  -O "$OUT_DIR/${sample_id}.gatk.hard-filtered.vcf.gz" \
-  --quiet
+  log "[$sample_id] GATK hard filter -> PASS-only (approximating DRAGEN/GATK best-practice defaults)"
+  gatk VariantFiltration \
+    -R "$REF_FASTA" \
+    -V "$OUT_DIR/${sample_id}.gatk.vcf.gz" \
+    --filter-expression "QD < 2.0" --filter-name "QD2" \
+    --filter-expression "FS > 60.0" --filter-name "FS60" \
+    --filter-expression "MQ < 40.0" --filter-name "MQ40" \
+    --filter-expression "DP < 10" --filter-name "DP10" \
+    -O "$OUT_DIR/${sample_id}.gatk.hard-filtered.vcf.gz" \
+    --quiet
+else
+  log "[$sample_id] gatk not on PATH — skipping GATK caller (bcftools output is used by default)"
+fi
 
-log "[$sample_id] variant calling complete (bcftools primary + GATK secondary)"
+if command -v gatk >/dev/null 2>&1; then
+  log "[$sample_id] variant calling complete (bcftools primary + GATK secondary)"
+else
+  log "[$sample_id] variant calling complete (bcftools primary)"
+fi

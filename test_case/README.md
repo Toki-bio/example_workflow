@@ -24,9 +24,8 @@ real patient data.**
 
 ## Running it
 
-Requires the conda environment from `../envs/environment.yml` (or just `bwa`, `samtools`,
-`bcftools`, `htslib`/`tabix`, and Python 3 on `PATH` — `snpEff`/`gatk`/`vep` are optional for
-this minimal demo and are skipped automatically if not installed):
+Requires `bwa`, `samtools`, `bcftools`, `fastp`, `tabix`/`bgzip`, and Python 3 on `PATH`
+(`gatk`, `snpEff`, `vep` are optional and skipped if absent). Easiest install:
 
 ```bash
 conda env create -f ../envs/environment.yml

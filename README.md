@@ -42,7 +42,7 @@ useful background if you're new to this space.
 | [`docs/DRAGEN_TO_OSS_MAPPING.md`](docs/DRAGEN_TO_OSS_MAPPING.md) | Stage-by-stage table mapping each DRAGEN feature to its open-source replacement |
 | [`docs/SAREK_ALTERNATIVE.md`](docs/SAREK_ALTERNATIVE.md) | Alternative sequencing engine: [nf-core/sarek](https://nf-co.re/sarek/3.9.0/) (Nextflow); clinical stages 05–07 shared |
 | [`panels/`](panels/) | Swappable gene-panel configs (gene list + BED region file); ships with a cardiomyopathy/channelopathy panel as the worked example |
-| [`envs/environment.yml`](envs/environment.yml) | Conda environment: bwa, samtools, bcftools, GATK4, snpEff, fastp/fastqc |
+| [`envs/environment.yml`](envs/environment.yml) | Conda environment: bwa, samtools, bcftools, fastp (GATK/snpEff optional) |
 | [`pipeline/`](pipeline/) | The pipeline itself: align → call variants (bcftools + GATK4) → annotate (snpEff/VEP + ClinVar) → filter pathogenic calls → case/control aggregate → HTML report |
 | [`test_case/`](test_case/) | A small, synthetic, shareable 2-sample demo (1 case + 1 control) using the cardiomyopathy example panel, running the whole pipeline end-to-end |
 
@@ -64,13 +64,10 @@ cd test_case
 python3 check_demo.py results
 ```
 
-If you already have a conda env with most tools (e.g. `bwa`, `samtools`, `bcftools`), install
-what is missing instead of creating a new env — typically GATK4:
+**Required on PATH:** `bwa`, `samtools`, `bcftools`, `fastp`, `tabix`, `bgzip`, `python3`  
+**Optional:** `gatk` (secondary caller), `snpEff` (gene annotation — ClinVar still runs without it)
 
-```bash
-conda install -c bioconda -c conda-forge gatk4
-bash pipeline/verify_tools.sh
-```
+If you already have most tools in another conda env, run `bash pipeline/verify_tools.sh` to see what is missing.
 
 This aligns two small synthetic samples against a ~48kb slice of real GRCh38 sequence (MYBPC3
 + MYH7), calls variants, annotates against a real published ClinVar pathogenic variant, and

@@ -61,7 +61,7 @@
       label: "SNPEFF_DB",
       group: "reference",
       kind: "tool",
-      bundled: "Not installed by default — conda gives snpEff the program only, not annotation DBs",
+      bundled: "Not in the default conda env — install snpeff separately if you want gene annotation",
       what: "snpEff database name (not a file path). snpEff looks up this name in its own data/ folder to add gene symbols and consequences to VCFs.",
       where: "After conda activate: snpEff databases (list), then snpEff download GRCh38.mane.1.2.ensembl — installs into snpEff's data/. Type the same name here. GRCh37: snpEff download GRCh37.75.",
       example: "GRCh38.mane.1.2.ensembl",
@@ -171,9 +171,9 @@
       label: "CALLER",
       group: "sample",
       kind: "setting",
-      bundled: "bcftools (primary); gatk also always produced in stage 03",
-      what: "Which hard-filtered VCF from stage 03 to annotate — both callers always run.",
-      where: "bcftools = fast primary. gatk = GATK4 cross-check.",
+      bundled: "bcftools (default); gatk optional secondary output in stage 03",
+      what: "Which hard-filtered VCF from stage 03 to annotate. The default pipeline uses bcftools.",
+      where: "bcftools = default. gatk = only if GATK4 is installed and you ran stage 03 with it.",
       type: "select",
       options: ["bcftools", "gatk"],
     },
@@ -302,7 +302,7 @@
       id: "setup",
       num: "0",
       title: "Environment setup",
-      desc: "Once per machine: clone the repo, create the conda env, activate it, verify tools. Do not run bare 'bwa' / 'samtools' — that dumps usage text. Use pipeline/verify_tools.sh.",
+      desc: "Once per machine: clone, create conda env, activate, verify tools. Required: bwa, samtools, bcftools, fastp, tabix, python3.",
       vars: [],
       file: null,
       runName: "setup.sh",
@@ -321,7 +321,7 @@
       id: "prepare",
       num: "01",
       title: "Prepare reference",
-      desc: "Build BWA index, samtools .fai, GATK dict, tabix ClinVar. Safe to re-run — skips steps already done. Run once per REF_FASTA.",
+      desc: "Build BWA index, samtools .fai, tabix ClinVar. GATK .dict only if gatk is installed. Safe to re-run.",
       vars: ["refFasta", "clinvarVcf", "snpeffDb", "bcftoolsPloidy", "threads", "outDir", "tmpDir"],
       file: "01_prepare_reference.sh",
       runName: "01_prepare_reference.sh",
@@ -339,7 +339,7 @@
       id: "call",
       num: "03",
       title: "Call variants",
-      desc: "Requires stage 02 BAM. bcftools mpileup+call (primary) and GATK4 HaplotypeCaller (secondary). Both hard-filtered to PASS.",
+      desc: "Requires stage 02 BAM. bcftools mpileup+call (primary). GATK4 runs only if gatk is on PATH.",
       vars: ["sampleId", "refFasta", "bcftoolsPloidy", "threads", "outDir", "tmpDir"],
       file: "03_call_variants.sh",
       runName: "03_call_variants.sh",
@@ -564,8 +564,11 @@ conda env create -f envs/environment.yml
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
 
-# Verify tools are on PATH — do NOT run bare "bwa" / "samtools" (that only prints usage help)
+# Verify required tools (bwa samtools bcftools fastp tabix bgzip python3)
 bash pipeline/verify_tools.sh
+
+# Optional: GATK secondary caller, snpEff gene annotation
+# conda install -c bioconda gatk4 snpeff
 
 # Quick path after setup: run the built-in demo (no extra downloads)
 #   cd test_case && ./run_demo.sh && python3 check_demo.py results
@@ -1102,7 +1105,7 @@ nextflow run nf-core/sarek -r 3.9.0 \\
     config: "Default paths — override for real data",
     prepare: "Index reference FASTA and tabix ClinVar",
     align: "FASTQ → sorted, deduplicated BAM",
-    call: "Variant calling (bcftools + GATK)",
+    call: "Variant calling (bcftools)",
     annotate: "snpEff + ClinVar on VCF",
     filter: "Keep pathogenic / likely pathogenic",
     report: "Per-sample HTML clinical report",

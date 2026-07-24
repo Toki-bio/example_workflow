@@ -58,7 +58,7 @@
         <div class="flow-arrow" aria-hidden="true">↓</div>
         <div class="flow-row"><span class="flow-box">Align → BAM</span><span class="flow-hint">bwa, samtools</span></div>
         <div class="flow-arrow" aria-hidden="true">↓</div>
-        <div class="flow-row"><span class="flow-box">Call variants → VCF</span><span class="flow-hint">bcftools, GATK</span></div>
+        <div class="flow-row"><span class="flow-box">Call variants → VCF</span><span class="flow-hint">bcftools</span></div>
         <div class="flow-arrow" aria-hidden="true">↓</div>
         <div class="flow-row"><span class="flow-box">Annotate</span><span class="flow-hint">snpEff, ClinVar</span></div>
         <div class="flow-arrow" aria-hidden="true">↓</div>
@@ -152,9 +152,10 @@ conda env create -f envs/environment.yml
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate variant-pipeline
 bash pipeline/verify_tools.sh</pre>
-        This installs <code>bwa</code>, <code>samtools</code>, <code>bcftools</code>,
-        <code>GATK4</code>, <code>snpEff</code> (the program), etc. It does <em>not</em> install
-        whole-genome reference FASTAs, full ClinVar, or snpEff annotation databases.
+        This installs <code>bwa</code>, <code>samtools</code>, <code>bcftools</code>, and
+        <code>fastp</code> — the tools the demo actually runs. It does <em>not</em> install
+        reference FASTAs, ClinVar, or snpEff. <code>GATK4</code> and <code>snpEff</code> are
+        optional (secondary caller and gene annotation).
         Do <strong>not</strong> verify with bare <code>bwa</code> / <code>samtools</code> —
         those commands only print usage help. Use <code>pipeline/verify_tools.sh</code>.
       </li>
@@ -235,10 +236,16 @@ python3 check_demo.py results</pre>
         <td>Swap or keep; BED must match your reference build</td>
       </tr>
       <tr>
-        <td>bwa, samtools, bcftools, GATK4, snpEff program</td>
+        <td>bwa, samtools, bcftools, fastp, tabix</td>
         <td>—</td>
         <td>Yes (after <code>conda env create</code>)</td>
         <td>—</td>
+      </tr>
+      <tr>
+        <td>GATK4, snpEff (optional)</td>
+        <td>—</td>
+        <td>No — install separately if you want them</td>
+        <td><code>conda install -c bioconda gatk4 snpeff</code></td>
       </tr>
       <tr>
         <td>Whole-genome reference FASTA (hg38, etc.)</td>

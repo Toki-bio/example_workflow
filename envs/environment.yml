@@ -4,17 +4,12 @@ channels:
   - bioconda
 dependencies:
   - python=3.11
-  - bwa=0.7.19
-  - samtools=1.20
-  - bcftools=1.20
-  - gatk4=4.5.0.0
-  - snpeff=5.2
-  - snpsift=5.2
-  - fastp=0.23.*
-  - fastqc=0.12.*
-  - htslib=1.20
+  - bwa
+  - samtools
+  - bcftools
+  - fastp
+  - htslib
   - tabix
-  - jq
   - pip
   - pip:
       - pandas

@@ -34,10 +34,12 @@ fi
 
 dict_path="${REF_FASTA%.*}.dict"
 if [[ -f "$dict_path" ]]; then
-  log "GATK sequence dictionary already present — skipping"
-else
+  log "Sequence dictionary already present — skipping"
+elif command -v gatk >/dev/null 2>&1; then
   log "Building GATK sequence dictionary"
   gatk CreateSequenceDictionary -R "$REF_FASTA" --QUIET true
+else
+  log "gatk not on PATH — skipping .dict (only needed if you use the GATK caller in stage 03)"
 fi
 
 if [[ -f "$CLINVAR_VCF" ]]; then
