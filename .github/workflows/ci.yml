@@ -18,15 +18,13 @@ jobs:
 
       - name: Verify tools on PATH
         shell: bash -l {0}
-        run: |
-          chmod +x pipeline/*.sh test_case/*.sh
-          bash pipeline/verify_tools.sh
+        run: bash pipeline/verify_tools.sh
 
       - name: Run synthetic 2-sample demo end-to-end
         shell: bash -l {0}
         run: |
           cd test_case
-          ./run_demo.sh
+          bash run_demo.sh
 
       - name: Verify case1 shows the pathogenic variant and control1 does not
         shell: bash -l {0}

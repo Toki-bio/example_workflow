@@ -7,7 +7,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$SCRIPT_DIR"
 
-bash "$SCRIPT_DIR/prepare_demo.sh"
+# Prepare demo reference files (inline — no separate script execution required)
+vcf_plain="refs/clinvar_panel_subset.vcf"
+vcf_gz="refs/clinvar_panel_subset.vcf.gz"
+if [[ ! -f "$vcf_gz" ]]; then
+  if [[ ! -f "$vcf_plain" ]]; then
+    echo "ERROR: neither $vcf_plain nor $vcf_gz found" >&2
+    exit 1
+  fi
+  bgzip -c "$vcf_plain" > "$vcf_gz"
+fi
+tabix -f -p vcf "$vcf_gz"
+if [[ ! -f refs/panel_region.fa ]]; then
+  echo "ERROR: refs/panel_region.fa not found" >&2
+  exit 1
+fi
+if [[ ! -f refs/panel_region.fa.fai ]]; then
+  samtools faidx refs/panel_region.fa
+fi
 
 export REF_FASTA="$SCRIPT_DIR/refs/panel_region.fa"
 export CLINVAR_VCF="$SCRIPT_DIR/refs/clinvar_panel_subset.vcf.gz"
