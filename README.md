@@ -93,8 +93,14 @@ export PANEL_GENES=/path/to/your_panel_genes.txt
 export PANEL_BED=/path/to/your_panel.bed        # coordinates must match REF_FASTA build
 export PANEL_NAME="Your Panel Name"
 export SNPEFF_DB=GRCh38.mane.1.2.ensembl      # snpEff DB for your build
+export RESTRICT_TO_PANEL=1                      # recommended for real WGS: call only PANEL_BED
 pipeline/run_pipeline.sh my_cohort_manifest.tsv
 ```
+
+Stage 04 automatically renames ClinVar contigs when needed (`1` ↔ `chr1`) so NCBI ClinVar
+annotates against UCSC-style references. Without a snpEff database, gene symbols fall back to
+ClinVar `GENEINFO`.
+
 
 `my_cohort_manifest.tsv` is tab-separated: `sample_id  case|control  R1.fastq[.gz]  R2.fastq[.gz]`
 (see `test_case/samples.tsv` for the format). R1/R2 accept plain `.fastq` or `.fastq.gz`; the

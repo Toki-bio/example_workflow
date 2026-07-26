@@ -36,15 +36,82 @@ else
   log "  snpEff download $SNPEFF_DB). Continuing with ClinVar-only annotation."
 fi
 
-log "[$sample_id] annotate with public ClinVar VCF (ID + CLNSIG/CLNDN/CLNREVSTAT[+CLNVID])"
-# Transfer annotation fields only (not CHROM/POS/REF/ALT match keys). Include CLNVID when
-# the annotation VCF defines it (real ClinVar); the demo subset may omit it.
+# --- Harmonize ClinVar contig names to the call VCF (NCBI "1" vs UCSC "chr1") ---
+# NCBI ClinVar VCFs use 1..22,X,Y,MT; many references/BAMs use chr1..chr22,chrX,chrY,chrM.
+# Without renaming, bcftools annotate silently transfers nothing.
+harmonize_clinvar_contigs() {
+  local target_vcf="$1"
+  local clinvar_vcf="$2"
+  local cache_dir="$OUT_DIR/.cache"
+  mkdir -p "$cache_dir"
+
+  local target_chrom clinvar_chrom
+  target_chrom="$(bcftools query -f '%CHROM\n' "$target_vcf" | head -1 || true)"
+  clinvar_chrom="$(bcftools query -f '%CHROM\n' "$clinvar_vcf" | head -1 || true)"
+  if [[ -z "$target_chrom" || -z "$clinvar_chrom" ]]; then
+    echo "$clinvar_vcf"
+    return 0
+  fi
+
+  local target_chr=0 clinvar_chr=0
+  [[ "$target_chrom" == chr* ]] && target_chr=1
+  [[ "$clinvar_chrom" == chr* ]] && clinvar_chr=1
+
+  if [[ "$target_chr" -eq "$clinvar_chr" ]]; then
+    echo "$clinvar_vcf"
+    return 0
+  fi
+
+  local tag map out
+  if [[ "$target_chr" -eq 1 ]]; then
+    tag="add_chr"
+    out="$cache_dir/clinvar_add_chr.vcf.gz"
+    map="$cache_dir/clinvar_add_chr.map"
+    if [[ ! -f "$map" ]]; then
+      {
+        local i
+        for i in $(seq 1 22); do printf '%s\tchr%s\n' "$i" "$i"; done
+        printf 'X\tchrX\nY\tchrY\nMT\tchrM\nM\tchrM\n'
+      } > "$map"
+    fi
+  else
+    tag="strip_chr"
+    out="$cache_dir/clinvar_strip_chr.vcf.gz"
+    map="$cache_dir/clinvar_strip_chr.map"
+    if [[ ! -f "$map" ]]; then
+      {
+        local i
+        for i in $(seq 1 22); do printf 'chr%s\t%s\n' "$i" "$i"; done
+        printf 'chrX\tX\nchrY\tY\nchrM\tMT\nchrMT\tMT\n'
+      } > "$map"
+    fi
+  fi
+
+  if [[ ! -f "$out" || ! -f "${out}.tbi" ]]; then
+    log "[$sample_id] harmonizing ClinVar contigs ($tag) to match calls (target=$target_chrom clinvar=$clinvar_chrom)"
+    bcftools annotate --rename-chrs "$map" -Oz -o "$out" "$clinvar_vcf"
+    tabix -f -p vcf "$out"
+  else
+    log "[$sample_id] using cached ClinVar contig-harmonized VCF ($tag)"
+  fi
+  echo "$out"
+}
+
+clinvar_for_annot="$(harmonize_clinvar_contigs "$snpeff_input" "$CLINVAR_VCF")"
+
+# Transfer annotation fields only (not CHROM/POS/REF/ALT match keys).
+# Include CLNVID / GENEINFO when the annotation VCF defines them (real ClinVar).
 annotate_cols="ID,INFO/CLNSIG,INFO/CLNDN,INFO/CLNREVSTAT"
-if bcftools view -h "$CLINVAR_VCF" | grep -q 'ID=CLNVID,'; then
+if bcftools view -h "$clinvar_for_annot" | grep -q 'ID=CLNVID,'; then
   annotate_cols+=",INFO/CLNVID"
 fi
+if bcftools view -h "$clinvar_for_annot" | grep -q 'ID=GENEINFO,'; then
+  annotate_cols+=",INFO/GENEINFO"
+fi
+
+log "[$sample_id] annotate with ClinVar ($annotate_cols)"
 bcftools annotate \
-  -a "$CLINVAR_VCF" \
+  -a "$clinvar_for_annot" \
   -c "$annotate_cols" \
   -Oz -o "$OUT_DIR/${sample_id}.${caller}.annotated.vcf.gz" \
   "$snpeff_input"
@@ -56,7 +123,7 @@ if command -v vep >/dev/null 2>&1; then
   vep \
     --input_file "$in_vcf" --format vcf \
     --fasta "$REF_FASTA" \
-    --custom "$CLINVAR_VCF",ClinVar,vcf,exact,0,CLNSIG,CLNDN,CLNREVSTAT \
+    --custom "$clinvar_for_annot",ClinVar,vcf,exact,0,CLNSIG,CLNDN,CLNREVSTAT \
     --vcf --output_file "$OUT_DIR/${sample_id}.${caller}.vep_clinvar.vcf" \
     --force_overwrite --offline --cache --everything \
     --stats_file "$OUT_DIR/${sample_id}.${caller}.vep_summary.html" \

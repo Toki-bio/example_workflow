@@ -381,6 +381,8 @@
       <li>Default demo path uses bcftools; GATK / snpEff / VEP are optional extras</li>
       <li>No BQSR (Base Quality Score Recalibration) on the bash path — set <code>RESTRICT_TO_PANEL=1</code> for real WGS panel calling; Sarek path includes BQSR</li>
       <li>ClinVar CLNSIG matching uses whole terms only (avoids false hits on “conflicting interpretations of pathogenicity”)</li>
+      <li>Stage 04 auto-harmonizes ClinVar contig names (<code>1</code> ↔ <code>chr1</code>) to match call VCFs; NCBI ClinVar must still be the same assembly as <code>REF_FASTA</code></li>
+      <li>Without a snpEff DB, gene names fall back to ClinVar <code>GENEINFO</code> (consequence/impact columns stay empty)</li>
     </ul>
     <h3>Not built yet</h3>
     <ul class="compact">
@@ -396,6 +398,6 @@
   <a href="https://toki-bio.github.io/example_workflow/">GitHub Pages</a>
 </footer>
 
-<script src="assets/app.js?v=20"></script>
+<script src="assets/app.js?v=21"></script>
 </body>
 </html>

@@ -23,14 +23,15 @@ from clinvar_sig import is_pathogenic_clnsig  # noqa: E402
 
 
 def extract_gene(info):
-    """Extract gene name from ANN or GENEINFO, handling short/malformed fields."""
-    if "ANN" in info:
-        parts = info["ANN"].split("|")
-        if len(parts) > 3:
+    """Extract gene name from snpEff ANN, else ClinVar GENEINFO."""
+    ann = info.get("ANN")
+    if ann and ann is not True:
+        parts = ann.split("|")
+        if len(parts) > 3 and parts[3]:
             return parts[3]
-        return ""
-    if "GENEINFO" in info:
-        return info["GENEINFO"].split(":")[0]
+    gi = info.get("GENEINFO")
+    if gi and gi is not True and gi != ".":
+        return gi.split("|")[0].split(":")[0].strip()
     return ""
 
 

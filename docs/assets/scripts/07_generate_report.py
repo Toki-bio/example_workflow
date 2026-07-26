@@ -46,19 +46,34 @@ def parse_info(info_field):
     return info
 
 
+def gene_from_geneinfo(info):
+    """ClinVar GENEINFO is Symbol:GeneID(|Symbol:GeneID...); use the first symbol."""
+    gi = info.get("GENEINFO", "")
+    if not gi or gi is True or gi == ".":
+        return ""
+    return gi.split("|")[0].split(":")[0].strip()
+
+
 def parse_ann(info):
-    """snpEff ANN field: Allele|Annotation|Impact|Gene_Name|Gene_ID|Feature_Type|Feature_ID|..."""
+    """snpEff ANN field, with ClinVar GENEINFO fallback when snpEff was skipped."""
     ann = info.get("ANN", "")
-    if not ann:
-        return {"gene": "", "consequence": "", "impact": "", "hgvsc": "", "hgvsp": ""}
-    first = ann.split(",")[0].split("|")
-    first += [""] * (11 - len(first))
+    if ann and ann is not True:
+        first = ann.split(",")[0].split("|")
+        first += [""] * (11 - len(first))
+        gene = first[3] or gene_from_geneinfo(info)
+        return {
+            "gene": gene,
+            "consequence": first[1],
+            "impact": first[2],
+            "hgvsc": first[9],
+            "hgvsp": first[10],
+        }
     return {
-        "gene": first[3],
-        "consequence": first[1],
-        "impact": first[2],
-        "hgvsc": first[9],
-        "hgvsp": first[10],
+        "gene": gene_from_geneinfo(info),
+        "consequence": "",
+        "impact": "",
+        "hgvsc": "",
+        "hgvsp": "",
     }
 
 

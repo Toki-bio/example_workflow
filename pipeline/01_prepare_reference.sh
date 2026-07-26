@@ -53,6 +53,7 @@ else
   log "WARNING: ClinVar VCF not found at $CLINVAR_VCF — annotation step will fail until you download it."
   log "  Source (GRCh38 example): https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz"
   log "  GRCh37: https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz"
+  log "  Note: NCBI ClinVar uses contigs 1..22 (no chr prefix). Stage 04 renames to chr* when needed."
 fi
 
 log "Reference preparation complete."
