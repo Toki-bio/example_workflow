@@ -54,12 +54,11 @@ fastp \
   --json "$OUT_DIR/${sample_id}.fastp.json" --html "$OUT_DIR/${sample_id}.fastp.html" \
   --thread "$THREADS"
 
-# Portable read-group: printf turns \t into real tabs (bash "\t" in double quotes does not).
-rg_header=$(printf '@RG\tID:%s\tSM:%s\tPL:ILLUMINA\tLB:%s' "$sample_id" "$sample_id" "$sample_id")
-
+# bwa expects escaped \t in -R (literal backslash-t). Real TAB characters are rejected
+# ("the read group line contained literal <tab> characters").
 log "[$sample_id] bwa mem + fixmate + sort"
 bwa mem -t "$THREADS" \
-  -R "$rg_header" \
+  -R "@RG\tID:${sample_id}\tSM:${sample_id}\tPL:ILLUMINA\tLB:${sample_id}" \
   "$REF_FASTA" \
   "$TMP_DIR/${sample_id}.trim_R1.fastq.gz" "$TMP_DIR/${sample_id}.trim_R2.fastq.gz" \
   | samtools fixmate -@ "$THREADS" -m -u - - \
