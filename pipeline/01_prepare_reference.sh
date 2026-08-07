@@ -37,7 +37,7 @@ if [[ -f "$dict_path" ]]; then
   log "Sequence dictionary already present — skipping"
 elif command -v gatk >/dev/null 2>&1; then
   log "Building GATK sequence dictionary"
-  gatk CreateSequenceDictionary -R "$REF_FASTA" --QUIET true
+  gatk CreateSequenceDictionary -R "$REF_FASTA" --QUIET
 else
   log "gatk not on PATH — skipping .dict (only needed if you use the GATK caller in stage 03)"
 fi

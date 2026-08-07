@@ -24,7 +24,7 @@ def clnsig_terms(clnsig: str) -> set[str]:
     if not clnsig or clnsig == ".":
         return set()
     text = clnsig.replace(" ", "_")
-    return {p.strip().lower() for p in re.split(r"[,/|]", text) if p.strip()}
+    return {p.strip().strip("_").lower() for p in re.split(r"[,/|]", text) if p.strip()}
 
 
 def is_pathogenic_clnsig(clnsig: str) -> bool:

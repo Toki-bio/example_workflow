@@ -130,5 +130,6 @@ multi-sample (case vs. control) view over the same data.
   content and not something that can be shipped in an open repository regardless of the FPGA
   question.
 
-See [`OSS_PIPELINE.md`](./OSS_PIPELINE.md) for the CPU-only, license-free replacement and
-[`DRAGEN_TO_OSS_MAPPING.md`](./DRAGEN_TO_OSS_MAPPING.md) for a stage-by-stage substitution table.
+See the [top-level README](../README.md) for the CPU-only, license-free replacement pipeline
+(`pipeline/`) and [`DRAGEN_TO_OSS_MAPPING.md`](./DRAGEN_TO_OSS_MAPPING.md) for a stage-by-stage
+substitution table.

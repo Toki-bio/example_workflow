@@ -62,10 +62,20 @@ harmonize_clinvar_contigs() {
     return 0
   fi
 
+  # Cache key for the harmonized VCF must include the source ClinVar file's identity
+  # (path + size + mtime), not just the rename direction -- otherwise switching
+  # CLINVAR_VCF while reusing the same OUT_DIR silently serves a stale harmonized file.
+  # The rename maps themselves (add_chr.map/strip_chr.map) are direction-only and safe
+  # to share across runs.
+  local clinvar_abs clinvar_fingerprint key
+  clinvar_abs="$(cd "$(dirname "$clinvar_vcf")" && pwd)/$(basename "$clinvar_vcf")"
+  clinvar_fingerprint="$(stat -c '%s_%Y' "$clinvar_abs" 2>/dev/null || stat -f '%z_%m' "$clinvar_abs")"
+  key="$(printf '%s|%s' "$clinvar_abs" "$clinvar_fingerprint" | cksum | cut -d' ' -f1)"
+
   local tag map out
   if [[ "$target_chr" -eq 1 ]]; then
     tag="add_chr"
-    out="$cache_dir/clinvar_add_chr.vcf.gz"
+    out="$cache_dir/clinvar_add_chr_${key}.vcf.gz"
     map="$cache_dir/clinvar_add_chr.map"
     if [[ ! -f "$map" ]]; then
       {
@@ -76,7 +86,7 @@ harmonize_clinvar_contigs() {
     fi
   else
     tag="strip_chr"
-    out="$cache_dir/clinvar_strip_chr.vcf.gz"
+    out="$cache_dir/clinvar_strip_chr_${key}.vcf.gz"
     map="$cache_dir/clinvar_strip_chr.map"
     if [[ ! -f "$map" ]]; then
       {
@@ -97,6 +107,8 @@ harmonize_clinvar_contigs() {
   echo "$out"
 }
 
+# shellcheck disable=SC2153 -- CLINVAR_VCF is a real env var set in 00_config.sh
+# (sourced dynamically, so shellcheck can't see it); not a typo of the local clinvar_vcf.
 clinvar_for_annot="$(harmonize_clinvar_contigs "$snpeff_input" "$CLINVAR_VCF")"
 
 # Transfer annotation fields only (not CHROM/POS/REF/ALT match keys).

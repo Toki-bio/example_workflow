@@ -23,7 +23,22 @@ jobs:
             pipeline/05_filter_pathogenic.py \
             pipeline/06_aggregate_case_control.py \
             pipeline/07_generate_report.py \
-            test_case/check_demo.py
+            test_case/check_demo.py \
+            test_case/simulate_reads.py
+          # Also py_compile (and diff) the docs-site mirror copies -- they're meant to be
+          # byte-identical to pipeline/ and have drifted silently before.
+          python3 -m py_compile docs/assets/scripts/clinvar_sig.py \
+            docs/assets/scripts/05_filter_pathogenic.py \
+            docs/assets/scripts/06_aggregate_case_control.py \
+            docs/assets/scripts/07_generate_report.py
+          for f in 00_config.sh 01_prepare_reference.sh 02_align.sh 03_call_variants.sh \
+                   04_annotate.sh 05_filter_pathogenic.py 06_aggregate_case_control.py \
+                   07_generate_report.py clinvar_sig.py run_pipeline.sh verify_tools.sh; do
+            diff -q "pipeline/$f" "docs/assets/scripts/$f" || {
+              echo "ERROR: pipeline/$f and docs/assets/scripts/$f have drifted -- keep them in sync." >&2
+              exit 1
+            }
+          done
           python3 - <<'PY'
           from pipeline.clinvar_sig import is_pathogenic_clnsig, clinical_significance
           assert is_pathogenic_clnsig("Pathogenic")
@@ -31,11 +46,42 @@ jobs:
           assert is_pathogenic_clnsig("Pathogenic/Likely_pathogenic")
           assert not is_pathogenic_clnsig("Conflicting_interpretations_of_pathogenicity")
           assert clinical_significance("Conflicting_interpretations_of_pathogenicity") == "unknown"
+          # Regression test for a real bug: a pathogenic term after a comma+space (not first
+          # in the list) must still be detected -- this silently broke once already when the
+          # docs/assets/scripts mirror drifted from pipeline/clinvar_sig.py.
+          assert is_pathogenic_clnsig("not_provided, Pathogenic")
+          assert is_pathogenic_clnsig("other, Likely_pathogenic")
           print("clinvar_sig OK")
           PY
 
       - name: Shellcheck pipeline scripts
         run: shellcheck pipeline/*.sh test_case/*.sh
+
+      - name: Verify simulate_reads.py still runs and produces valid output
+        shell: bash -l {0}
+        # Note: output is not byte-exact reproducible run-to-run even with a fixed --seed
+        # (Python's default per-process hash randomization affects internal ordering), so
+        # this checks structure/validity, not a byte-for-byte match against fastq/.
+        run: |
+          cd test_case
+          python3 simulate_reads.py --ref refs/panel_region.fa --out-dir /tmp/regen
+          for f in case1_R1 case1_R2 control1_R1 control1_R2; do
+            gzip -t "/tmp/regen/${f}.fastq.gz" || {
+              echo "ERROR: /tmp/regen/${f}.fastq.gz is not a valid gzip file" >&2
+              exit 1
+            }
+            regen_lines="$(zcat "/tmp/regen/${f}.fastq.gz" | wc -l)"
+            committed_lines="$(zcat "fastq/${f}.fastq.gz" | wc -l)"
+            if [[ "$regen_lines" -eq 0 || $((regen_lines % 4)) -ne 0 ]]; then
+              echo "ERROR: /tmp/regen/${f}.fastq.gz has $regen_lines lines -- not a well-formed non-empty FASTQ (must be a positive multiple of 4)" >&2
+              exit 1
+            fi
+            if [[ "$regen_lines" -ne "$committed_lines" ]]; then
+              echo "ERROR: regenerated ${f}.fastq.gz has $regen_lines lines, committed fastq/${f}.fastq.gz has $committed_lines -- read count changed, regenerate and re-commit fastq/ if intentional." >&2
+              exit 1
+            fi
+          done
+          echo "simulate_reads.py output is well-formed and matches committed read counts"
 
       - name: Verify tools on PATH
         shell: bash -l {0}

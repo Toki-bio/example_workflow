@@ -64,6 +64,24 @@ while IFS=$'\t' read -r sample_id sample_type r1 r2 || [[ -n "${sample_id:-}" ]]
     "$sample_id" "$PANEL_GENES" \
     "$OUT_DIR/${sample_id}.report.html" \
     "$PANEL_NAME"
+
+  # GATK secondary caller (03_call_variants.sh runs it only if gatk is on PATH):
+  # actually annotate + filter it too, so it's a real cross-check, not wasted compute.
+  # Named *.gatk_crosscheck.jsonl (not *.pathogenic.jsonl) so 06's aggregation glob
+  # below does not double-count it against the primary bcftools calls.
+  if [[ -f "$OUT_DIR/${sample_id}.gatk.hard-filtered.vcf.gz" ]]; then
+    log "[$sample_id] GATK cross-check: annotate + filter"
+    bash "$SCRIPT_DIR/04_annotate.sh" "$sample_id" gatk
+    python3 "$SCRIPT_DIR/05_filter_pathogenic.py" \
+      "$OUT_DIR/${sample_id}.gatk.annotated.vcf.gz" \
+      "$sample_id" "$sample_type" \
+      "$OUT_DIR/${sample_id}.${sample_type}.gatk_crosscheck.jsonl"
+    python3 "$SCRIPT_DIR/07_generate_report.py" \
+      "$OUT_DIR/${sample_id}.gatk.annotated.vcf.gz" \
+      "$sample_id" "$PANEL_GENES" \
+      "$OUT_DIR/${sample_id}.gatk.report.html" \
+      "$PANEL_NAME (GATK cross-check)"
+  fi
 done < "$manifest"
 
 log "Aggregating pathogenic calls across the cohort"
