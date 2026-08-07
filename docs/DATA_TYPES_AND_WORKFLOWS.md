@@ -164,6 +164,9 @@ just by pointing it at a different panel config.
 
 **Roadmap (documented here, not yet built):**
 - Array/genotyping ingestion path: IDAT/CEL -> genotype calling -> PLINK QC -> imputation -> VCF.
+  See [`ARRAY_GENOTYPING_ROADMAP.md`](ARRAY_GENOTYPING_ROADMAP.md) for a sizing estimate of the
+  IDAT -> genotype-calling step specifically (GenomeStudio vs. DRAGEN Array vs. open-source
+  callers).
 - Pluggable alternate callers beyond bcftools/GATK4 (e.g. DeepVariant) selectable via
   configuration rather than code changes.
 - Workflow-manager orchestration (e.g. Nextflow or Snakemake) in place of the current plain-bash

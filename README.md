@@ -41,6 +41,7 @@ useful background if you're new to this space.
 | [`docs/ORIGINAL_DRAGEN_PIPELINE.md`](docs/ORIGINAL_DRAGEN_PIPELINE.md) | Case study: reconstruction of a real FPGA-accelerated DRAGEN pipeline, as run in production |
 | [`docs/DRAGEN_TO_OSS_MAPPING.md`](docs/DRAGEN_TO_OSS_MAPPING.md) | Stage-by-stage table mapping each DRAGEN feature to its open-source replacement |
 | [`docs/SAREK_ALTERNATIVE.md`](docs/SAREK_ALTERNATIVE.md) | Alternative sequencing engine: [nf-core/sarek](https://nf-co.re/sarek/3.9.0/) (Nextflow); clinical stages 05–07 shared |
+| [`docs/ARRAY_GENOTYPING_ROADMAP.md`](docs/ARRAY_GENOTYPING_ROADMAP.md) | **(roadmap, not implemented)** IDAT → genotype calling estimate: GenomeStudio vs. DRAGEN Array, plus open-source callers (zCall, crlmm) |
 | [`panels/`](panels/) | Swappable gene-panel configs (gene list + BED region file); ships with a cardiomyopathy/channelopathy panel as the worked example |
 | [`envs/environment.yml`](envs/environment.yml) | Conda environment: python3, bwa, samtools, bcftools, fastp, htslib (tabix/bgzip) (GATK/snpEff optional, install separately) |
 | [`pipeline/`](pipeline/) | The pipeline itself, per sample: align → call variants (bcftools, + GATK4 as an optional cross-check) → annotate (snpEff/VEP + ClinVar) → filter pathogenic calls → HTML report. After all samples: case/control aggregate. |
