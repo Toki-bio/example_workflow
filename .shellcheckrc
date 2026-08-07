@@ -1,5 +1,8 @@
-# SC1090: every pipeline script sources 00_config.sh via a dynamically-resolved
-# $SCRIPT_DIR path (so scripts work regardless of caller's cwd) -- shellcheck can't
-# follow that statically, and it's not a real bug. Disabling repo-wide rather than
-# adding a directive to every source line.
+# Every pipeline script sources 00_config.sh via a dynamically-resolved $SCRIPT_DIR
+# path (so scripts work regardless of caller's cwd) -- shellcheck can't follow that
+# statically, and it's not a real bug. Disabling repo-wide rather than adding a
+# directive to every source line. SC1090 and SC1091 are both the "can't follow
+# dynamic/unspecified source" family across different shellcheck versions (older
+# versions report SC1090, 0.7+ reports SC1091 for this exact case) -- disable both.
 disable=SC1090
+disable=SC1091

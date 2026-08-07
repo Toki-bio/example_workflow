@@ -107,8 +107,9 @@ harmonize_clinvar_contigs() {
   echo "$out"
 }
 
-# shellcheck disable=SC2153 -- CLINVAR_VCF is a real env var set in 00_config.sh
-# (sourced dynamically, so shellcheck can't see it); not a typo of the local clinvar_vcf.
+# CLINVAR_VCF is a real env var set in 00_config.sh (sourced dynamically, so shellcheck
+# can't see it); not a typo of the local clinvar_vcf.
+# shellcheck disable=SC2153
 clinvar_for_annot="$(harmonize_clinvar_contigs "$snpeff_input" "$CLINVAR_VCF")"
 
 # Transfer annotation fields only (not CHROM/POS/REF/ALT match keys).
