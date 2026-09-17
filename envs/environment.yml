@@ -11,4 +11,7 @@ dependencies:
   - fastp=0.23.4
   - htslib=1.20
   # tabix/bgzip ship with htslib — do not list tabix separately (avoids dual-resolve conflicts)
-  # Python stages use stdlib only (no pandas/jinja2)
+  - pysam=0.23.3
+  # pysam (htslib bindings) is used by 05_filter_pathogenic.py for VCF parsing instead of
+  # hand-rolled text splitting — same underlying C library bcftools itself is built on.
+  # Other Python stages still use stdlib only (no pandas/jinja2).
