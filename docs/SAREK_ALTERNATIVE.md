@@ -66,20 +66,42 @@ Test your setup first with sarek's built-in test profile:
 nextflow run nf-core/sarek -r 3.9.0 -profile test,docker --outdir sarek_test
 ```
 
-**3. Clinical handoff** — point this repo's scripts at sarek's annotated VCF per sample
-(typical path under `--outdir`, varies by `--tools`):
+**3. Annotate, then hand off** — sarek's own VCF (`--tools haplotypecaller,snpeff`) has
+gene/consequence annotation from snpEff but **no ClinVar significance** (no `CLNSIG`/`CLNDN`).
+`pipeline/05_filter_pathogenic.py` and `07_generate_report.py` both filter on `CLNSIG`, so
+skipping this step silently produces an empty pathogenic list, not an error. Annotate first:
 
 ```bash
 # Example paths — adjust to your sarek version and --tools selection
 SAREK_VCF="sarek_results/variant_calling/haplotypecaller/case1/case1.haplotypecaller.vcf.gz"
 
+# CLINVAR_VCF must use the same contig naming (chr1 vs 1) as SAREK_VCF, or bcftools annotate
+# matches nothing without erroring. On this server: /staging/refs/clinvar/clinvar.GRCh38.chr.vcf.gz
+bcftools annotate \
+  -a "$CLINVAR_VCF" \
+  -c CHROM,POS,REF,ALT,ID,INFO/CLNSIG,INFO/CLNDN,INFO/CLNREVSTAT \
+  -Oz -o "results/case1.annotated.vcf.gz" \
+  "$SAREK_VCF"
+tabix -f -p vcf "results/case1.annotated.vcf.gz"
+
 python3 pipeline/05_filter_pathogenic.py \
-  "$SAREK_VCF" case1 case \
+  "results/case1.annotated.vcf.gz" case1 case \
   results/case1.case.pathogenic.jsonl
 
 python3 pipeline/07_generate_report.py \
-  "$SAREK_VCF" case1 panels/cardiomyopathy/cardiomyopathy_genes.txt \
+  "results/case1.annotated.vcf.gz" case1 panels/cardiomyopathy/cardiomyopathy_genes.txt \
   results/case1.report.html "Cardiomyopathy"
+```
+
+`pipeline/04_annotate.sh` does exactly the annotate step above (plus an optional VEP cross-check)
+and auto-detects/fixes a contig-naming mismatch; call it directly instead of hand-rolling
+`bcftools annotate` if you already have `pipeline/00_config.sh`'s env vars set:
+
+```bash
+CLINVAR_VCF=/staging/refs/clinvar/clinvar.GRCh38.chr.vcf.gz \
+  pipeline/04_annotate.sh case1 gatk   # reads results/case1.gatk.hard-filtered.vcf.gz by convention --
+                                        # for a sarek VCF, copy/symlink it to that name first, or
+                                        # inline the bcftools annotate command above.
 ```
 
 Repeat per sample, then aggregate:
