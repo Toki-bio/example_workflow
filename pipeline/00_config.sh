@@ -12,11 +12,12 @@ _PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _REPO_ROOT="$(cd "$_PIPELINE_DIR/.." && pwd)"
 
 : "${REF_FASTA:=$_REPO_ROOT/test_case/refs/panel_region.fa}"   # any build; demo = GRCh38 slice
-: "${CLINVAR_VCF:=$_REPO_ROOT/test_case/refs/clinvar_panel_subset.vcf.gz}"  # demo subset; for real
-# GRCh38 runs on this server use /staging/refs/clinvar/clinvar.GRCh38.chr.vcf.gz (chr-prefixed,
-# matches GATK.GRCh38 / sarek output -- see /staging/refs/clinvar/README.md). CLINVAR_VCF must
-# use the same contig naming as REF_FASTA / the VCF being annotated; 04_annotate.sh will detect
-# and auto-normalize a mismatch, but pointing at the right file directly skips that extra pass.
+: "${CLINVAR_VCF:=$_REPO_ROOT/test_case/refs/clinvar_panel_subset.vcf.gz}"  # must match REF_FASTA build
+# For real runs point CLINVAR_VCF at a current ClinVar VCF with the SAME contig naming as REF_FASTA
+# and the VCF being annotated (GATK.GRCh38 / sarek use chr-prefixed names; 04_annotate.sh detects
+# and normalises a mismatch, but the right file skips that pass). Record the release from the
+# file's own `##fileDate` header, never from a README next to it: a README once said 2024-09-02
+# for a file that was 2025-07-15.
 : "${SNPEFF_DB:=GRCh38.mane.1.2.ensembl}"           # snpEff DB name — must match REF_FASTA build
 : "${BCFTOOLS_PLOIDY:=GRCh38}"                       # bcftools call --ploidy set (e.g. GRCh37, GRCh38)
 
