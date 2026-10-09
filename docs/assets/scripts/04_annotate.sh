@@ -118,6 +118,11 @@ annotate_cols="ID,INFO/CLNSIG,INFO/CLNDN,INFO/CLNREVSTAT"
 if bcftools view -h "$clinvar_for_annot" | grep -q 'ID=CLNVID,'; then
   annotate_cols+=",INFO/CLNVID"
 fi
+# CLNSIGCONF = per-tier submission counts of a "Conflicting" aggregate; without it a conflict
+# with Pathogenic submissions cannot be told from a conflict between VUS and Likely benign.
+if bcftools view -h "$clinvar_for_annot" | grep -q 'ID=CLNSIGCONF,'; then
+  annotate_cols+=",INFO/CLNSIGCONF"
+fi
 if bcftools view -h "$clinvar_for_annot" | grep -q 'ID=GENEINFO,'; then
   annotate_cols+=",INFO/GENEINFO"
 fi

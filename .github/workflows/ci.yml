@@ -54,6 +54,10 @@ jobs:
           print("clinvar_sig OK")
           PY
 
+      - name: Unit tests (ClinVar tier logic, stages 05 -> 07)
+        shell: bash -l {0}
+        run: python3 -m unittest discover -s tests -v
+
       - name: Shellcheck pipeline scripts
         run: shellcheck pipeline/*.sh test_case/*.sh
 

@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Extract ClinVar Pathogenic / Likely pathogenic calls from an annotated VCF into JSONL.
+"""Extract ClinVar-flagged calls from an annotated VCF into JSONL (tiers T1a and T1b).
+
+    T1a  ClinVar aggregate Pathogenic / Likely pathogenic
+    T1b  ClinVar aggregate "Conflicting classifications" with at least one P/LP submission
+         (CLNSIGCONF); the aggregate is not a verdict, so these must be reviewed, not dropped
+
+Calls that fail the caller's FILTER are kept and marked ``"filter_pass": false`` (a filter flags
+a call, it does not delete it).
 
 Uses `pysam.VariantFile` (htslib bindings) for VCF parsing instead of hand-rolled text
 splitting — the same C library bcftools itself is built on, so field typing (Number=.
@@ -12,9 +19,9 @@ This is the CPU-pipeline equivalent of the original `ann.sh` / `ann1.sh` scripts
 "pathogenic" (case-insensitive). Here the same selection rule is applied to the CLNSIG field
 populated by `bcftools annotate` (or VEP's --custom ClinVar) in stage 04.
 
-Whole ClinVar significance *terms* are matched (not substrings), so values like
-``Conflicting_interpretations_of_pathogenicity`` are excluded. Non-PASS FILTER records
-are dropped.
+Whole ClinVar significance *terms* are matched (not substrings), so
+``Conflicting_interpretations_of_pathogenicity`` is not mistaken for a pathogenic call; it is
+handled explicitly as tier T1b when CLNSIGCONF shows a P/LP submission.
 
 Usage:
     05_filter_pathogenic.py <annotated.vcf.gz> <sample_id> <case|control> <output.jsonl>
@@ -28,7 +35,7 @@ from pathlib import Path
 import pysam
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from clinvar_sig import is_pathogenic_clnsig  # noqa: E402
+from clinvar_sig import clinvar_tier, conflict_counts  # noqa: E402
 
 
 def info_str(record: pysam.VariantRecord, key: str) -> str:
@@ -36,7 +43,12 @@ def info_str(record: pysam.VariantRecord, key: str) -> str:
     clinvar_sig.is_pathogenic_clnsig() and the rest of this pipeline expect - pysam
     auto-splits Number=. INFO fields into tuples, which the original hand-rolled parser
     never did (it always saw the raw, un-split field text)."""
-    value = record.info.get(key)
+    try:
+        value = record.info.get(key)
+    except (ValueError, KeyError):
+        # key not declared in the VCF header (e.g. ANN when snpEff was skipped): pysam raises
+        # instead of returning None; treat as absent rather than skipping the whole record.
+        return ""
     if value is None:
         return ""
     if isinstance(value, tuple):
@@ -89,11 +101,10 @@ def main() -> None:
         for record in vcf:
             n_total += 1
             try:
-                if not is_pass_filter(record):
-                    continue
-
                 clnsig = info_str(record, "CLNSIG")
-                if not is_pathogenic_clnsig(clnsig):
+                clnsigconf = info_str(record, "CLNSIGCONF")
+                tier = clinvar_tier(clnsig, clnsigconf)
+                if not tier:
                     continue
 
                 n_pathogenic += 1
@@ -106,6 +117,9 @@ def main() -> None:
                     "altAlleles": list(record.alts) if record.alts else [],
                     "quality": format_qual(record.qual),
                     "filters": ";".join(record.filter.keys()) or ".",
+                    "filter_pass": is_pass_filter(record),
+                    "tier": tier,
+                    "clinvar_conflict_counts": conflict_counts(clnsigconf),
                     "clinvar_id": str(record.id) if record.id else (info_str(record, "CLNVID") or "."),
                     "clinvar_significance": clnsig,
                     "clinvar_phenotypes": info_str(record, "CLNDN"),
@@ -118,8 +132,9 @@ def main() -> None:
                 print(f"[{sample_id}] WARNING: skipping malformed record at "
                       f"{record.chrom}:{record.pos}: {exc}", file=sys.stderr)
 
-    print(f"[{sample_id}] {n_pathogenic} pathogenic/likely-pathogenic positions "
-          f"out of {n_total} total records -> {out_path}", file=sys.stderr)
+    print(f"[{sample_id}] {n_pathogenic} ClinVar-flagged positions (T1a pathogenic/likely pathogenic, "
+          f"T1b conflicting with P/LP submissions) out of {n_total} total records -> {out_path}",
+          file=sys.stderr)
     if n_skipped:
         print(f"[{sample_id}] WARNING: skipped {n_skipped} malformed VCF records", file=sys.stderr)
 

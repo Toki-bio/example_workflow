@@ -61,6 +61,8 @@ def main():
             "control_samples": control_samples,
             "gene": records[0].get("gene", ""),
             "clinvar_significance": records[0].get("clinvar_significance", ""),
+            "tiers": sorted({r.get("tier", "T1a") for r in records}),
+            "all_calls_pass_filter": all(r.get("filter_pass", True) for r in records),
         })
 
     aggregated.sort(key=lambda r: r["total_count"], reverse=True)
