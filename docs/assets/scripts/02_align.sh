@@ -10,13 +10,25 @@ r2="$3"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
-for f in "$r1" "$r2"; do
-  if [[ ! -f "$f" ]]; then
-    for ext in .gz .fq.gz .fastq.gz .fq .fastq; do
-      [[ -f "${f}${ext}" ]] && eval "$(echo "$f" | sed 's/[^a-zA-Z0-9_]/\\&/g')=\"${f}${ext}\"" && break
-    done
+# Resolve a FASTQ given without (or with a different) extension; fail loudly if it cannot be found
+# (the earlier eval-based version never actually reassigned r1/r2 and let a missing file reach fastp).
+resolve_fastq() {
+  local f="$1" ext
+  if [[ -f "$f" ]]; then
+    echo "$f"
+    return 0
   fi
-done
+  for ext in .gz .fq.gz .fastq.gz .fq .fastq; do
+    if [[ -f "${f}${ext}" ]]; then
+      echo "${f}${ext}"
+      return 0
+    fi
+  done
+  echo "ERROR: FASTQ not found: $f" >&2
+  return 1
+}
+r1="$(resolve_fastq "$r1")"
+r2="$(resolve_fastq "$r2")"
 
 bam_sorted="$TMP_DIR/${sample_id}.sorted.bam"
 cram_final="$OUT_DIR/${sample_id}.markdup.cram"
