@@ -22,7 +22,11 @@
 - `tests/`: offline unit tests for the tier logic and an end-to-end 05 -> 07 test on a tiny annotated
   VCF; run in CI.
 
+- **Stage 08 triage** (`pipeline/08_triage.sh`, `pipeline/triage/edt.py`, `docs/TRIAGE.md`): gene set from
+  PanelApp UK/AU + HPO (no default list), independent tiers T1a / T1b / T2 / T2r, per-variant dossiers
+  listing every ClinVar submission, optional offline Nirvana annotation, manifest with panel versions
+  and the ClinVar fileDate. Positive controls must pass before a run proceeds.
+
 ### Known gaps (see PLAN_example_workflow_revision_v2.md)
-- Gene sets are still the shipped panel list, not PanelApp/HPO-derived; no ClinVar-blind candidate tier
-  (T2) in the pipeline yet; annotation provenance (`versions.json`) and the sarek path are not yet
-  part of the repo; no GIAB benchmark.
+- Stages 05-07 still use the shipped panel list (stage 08 is the phenotype-driven path); the sarek launcher
+  and a GIAB benchmark are not yet part of the repo.

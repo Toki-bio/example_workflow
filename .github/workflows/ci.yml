@@ -24,7 +24,8 @@ jobs:
             pipeline/06_aggregate_case_control.py \
             pipeline/07_generate_report.py \
             test_case/check_demo.py \
-            test_case/simulate_reads.py
+            test_case/simulate_reads.py \
+            pipeline/triage/edt.py
           # Also py_compile (and diff) the docs-site mirror copies -- they're meant to be
           # byte-identical to pipeline/ and have drifted silently before.
           python3 -m py_compile docs/assets/scripts/clinvar_sig.py \
@@ -33,7 +34,7 @@ jobs:
             docs/assets/scripts/07_generate_report.py
           for f in 00_config.sh 01_prepare_reference.sh 02_align.sh 03_call_variants.sh \
                    04_annotate.sh 05_filter_pathogenic.py 06_aggregate_case_control.py \
-                   07_generate_report.py clinvar_sig.py run_pipeline.sh verify_tools.sh; do
+                   07_generate_report.py 08_triage.sh clinvar_sig.py run_pipeline.sh verify_tools.sh; do
             diff -q "pipeline/$f" "docs/assets/scripts/$f" || {
               echo "ERROR: pipeline/$f and docs/assets/scripts/$f have drifted -- keep them in sync." >&2
               exit 1

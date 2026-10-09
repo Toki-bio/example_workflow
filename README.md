@@ -45,6 +45,7 @@ useful background if you're new to this space.
 | [`panels/`](panels/) | Swappable gene-panel configs (gene list + BED region file); ships with a cardiomyopathy/channelopathy panel as the worked example |
 | [`envs/environment.yml`](envs/environment.yml) | Conda environment: python3, bwa, samtools, bcftools, fastp, htslib (tabix/bgzip) (GATK/snpEff optional, install separately) |
 | [`pipeline/`](pipeline/) | The pipeline itself, per sample: align → call variants (bcftools, + GATK4 as an optional cross-check) → annotate (snpEff/VEP + ClinVar) → filter pathogenic calls → HTML report. After all samples: case/control aggregate. |
+| [`docs/TRIAGE.md`](docs/TRIAGE.md) | Stage 08: phenotype-driven triage that does not trust ClinVar's aggregate label (PanelApp/HPO gene sets, tiers T1a/T1b/T2, evidence dossiers) |
 | [`test_case/`](test_case/) | A small, synthetic, shareable 2-sample demo (1 case + 1 control) using the cardiomyopathy example panel, running the whole pipeline end-to-end |
 
 ## Quick start (synthetic demo)
