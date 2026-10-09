@@ -25,7 +25,11 @@ jobs:
             pipeline/07_generate_report.py \
             test_case/check_demo.py \
             test_case/simulate_reads.py \
-            pipeline/triage/edt.py
+            pipeline/triage/edt.py \
+            pipeline/refs/make_versions.py \
+            tests/spikein/run_spikein.py \
+            tests/spikein/select_cases.py \
+            tests/spikein/hpo_local.py
           # Also py_compile (and diff) the docs-site mirror copies -- they're meant to be
           # byte-identical to pipeline/ and have drifted silently before.
           python3 -m py_compile docs/assets/scripts/clinvar_sig.py \

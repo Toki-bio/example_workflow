@@ -30,3 +30,13 @@
 ### Known gaps (see PLAN_example_workflow_revision_v2.md)
 - Stages 05-07 still use the shipped panel list (stage 08 is the phenotype-driven path); the sarek launcher
   and a GIAB benchmark are not yet part of the repo.
+
+## Unreleased (branch refs-and-spikein)
+
+### Added
+- `pipeline/refs/make_versions.py`: describes a dated reference bundle (ClinVar, HPO, PanelApp, ClinGen, G2P,
+  gnomAD constraint, Nirvana data) by writing `versions.json`, `SHA256SUMS` and a full `README.md`. Versions are
+  read from the files' own headers, never from a README; it exits non-zero when one cannot be read.
+- `tests/spikein/`: spike-in test of the triage logic with 200 solved phenopacket-store cases (result: causal
+  variant in the candidate list for 99%, top 10 for 92%, versus 61% for reporting only ClinVar P/LP).
+- Tests for make_versions (`tests/test_make_versions.py`).
