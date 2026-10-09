@@ -1,79 +1,60 @@
-#!/bin/bash
-# Replaces DRAGEN's --enable-map-align-output / --enable-sort / --enable-duplicate-marking
-# / --enable-bam-indexing with: bwa mem -> fixmate -m -> sort -> markdup -> index.
-#
-# Usage: 02_align.sh <sample_id> <R1.fastq[.gz]> <R2.fastq[.gz]>
-# Accepts plain .fastq or .fastq.gz (and .fq / .fq.gz). Auto-resolves paths without extension.
+#!/usr/bin/env bash
+# 02_align.sh — CRAM output, NO FASTQ deletion
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/00_config.sh"
 
-# Resolve FASTQ path: use as given, or try .fastq.gz / .fastq / .fq.gz / .fq suffixes.
-resolve_fastq() {
-  local path="$1"
-  if [[ -f "$path" ]]; then
-    echo "$path"
-    return 0
-  fi
-  for candidate in "${path}.fastq.gz" "${path}.fq.gz" "${path}.fastq" "${path}.fq"; do
-    if [[ -f "$candidate" ]]; then
-      echo "$candidate"
-      return 0
-    fi
-  done
-  echo "$path"
-}
-
-fastq_format_label() {
-  local path="$1"
-  if [[ "$path" == *.gz ]]; then echo "gzip"; else echo "plain"; fi
-}
+source "$(dirname "$0")/00_config.sh"
 
 sample_id="$1"
-r1_raw="$2"
-r2_raw="$3"
-r1="$(resolve_fastq "$r1_raw")"
-r2="$(resolve_fastq "$r2_raw")"
+r1="$2"
+r2="$3"
 
-if [[ ! -f "$r1" ]]; then
-  echo "ERROR: R1 FASTQ not found (tried '$r1_raw' and common suffixes): $r1" >&2
-  exit 1
-fi
-if [[ ! -f "$r2" ]]; then
-  echo "ERROR: R2 FASTQ not found (tried '$r2_raw' and common suffixes): $r2" >&2
-  exit 1
-fi
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+
+for f in "$r1" "$r2"; do
+  if [[ ! -f "$f" ]]; then
+    for ext in .gz .fq.gz .fastq.gz .fq .fastq; do
+      [[ -f "${f}${ext}" ]] && eval "$(echo "$f" | sed 's/[^a-zA-Z0-9_]/\\&/g')=\"${f}${ext}\"" && break
+    done
+  fi
+done
 
 bam_sorted="$TMP_DIR/${sample_id}.sorted.bam"
-bam_final="$OUT_DIR/${sample_id}.markdup.bam"
+cram_final="$OUT_DIR/${sample_id}.markdup.cram"
 
-log "[$sample_id] fastp QC/trim (R1: $r1 [$(fastq_format_label "$r1")], R2: $r2 [$(fastq_format_label "$r2")])"
+log "[$sample_id] fastp (adapter + quality trim)"
 fastp \
   -i "$r1" -I "$r2" \
   -o "$TMP_DIR/${sample_id}.trim_R1.fastq.gz" -O "$TMP_DIR/${sample_id}.trim_R2.fastq.gz" \
+  --thread "$THREADS" \
+  --detect_adapter_for_pe \
+  --cut_front --cut_tail --cut_window_size 4 --cut_mean_quality 20 \
+  --length_required 50 \
   --json "$OUT_DIR/${sample_id}.fastp.json" --html "$OUT_DIR/${sample_id}.fastp.html" \
-  --thread "$THREADS"
+  2>&1 | tee "$OUT_DIR/${sample_id}.fastp.stderr.log"
 
-# bwa expects escaped \t in -R (literal backslash-t). Real TAB characters are rejected
-# ("the read group line contained literal <tab> characters").
 log "[$sample_id] bwa mem + fixmate + sort"
-bwa mem -t "$THREADS" \
+bwa mem -t "$THREADS" -Y \
   -R "@RG\tID:${sample_id}\tSM:${sample_id}\tPL:ILLUMINA\tLB:${sample_id}" \
   "$REF_FASTA" \
-  "$TMP_DIR/${sample_id}.trim_R1.fastq.gz" "$TMP_DIR/${sample_id}.trim_R2.fastq.gz" \
+  "$TMP_DIR/${sample_id}.trim_R1.fastq.gz" \
+  "$TMP_DIR/${sample_id}.trim_R2.fastq.gz" \
   | samtools fixmate -@ "$THREADS" -m -u - - \
   | samtools sort -@ "$THREADS" -o "$bam_sorted" -
 
-log "[$sample_id] mark duplicates"
-samtools markdup -@ "$THREADS" "$bam_sorted" "$bam_final"
+log "[$sample_id] markdup + CRAM conversion"
+samtools markdup -@ "$THREADS" "$bam_sorted" - \
+  | samtools view -C -@ "$THREADS" -T "$REF_FASTA" -o "$cram_final" -
 
-log "[$sample_id] index"
-samtools index -@ "$THREADS" "$bam_final"
+log "[$sample_id] indexing CRAM"
+samtools index -@ "$THREADS" "$cram_final"
 
-log "[$sample_id] post-alignment QC (flagstat)"
-samtools flagstat "$bam_final" | tee "$OUT_DIR/${sample_id}.flagstat.txt"
+log "[$sample_id] flagstat"
+samtools flagstat "$cram_final" | tee "$OUT_DIR/${sample_id}.flagstat.txt"
 
+# Cleanup temp files only (NOT merged FASTQs)
 rm -f "$bam_sorted" \
   "$TMP_DIR/${sample_id}.trim_R1.fastq.gz" \
   "$TMP_DIR/${sample_id}.trim_R2.fastq.gz"
-log "[$sample_id] alignment complete -> $bam_final"
+rm -f "$TMP_DIR/${sample_id}.sorted.bam.tmp."*.bam 2>/dev/null || true
+
+log "[$sample_id] alignment complete -> $cram_final"
