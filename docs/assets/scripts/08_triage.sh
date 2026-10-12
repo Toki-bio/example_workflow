@@ -11,6 +11,9 @@
 #   TRIAGE_NIRVANA    Nirvana .json.gz of the same VCF (offline annotation) instead of Ensembl VEP REST
 #   TRIAGE_CLINVAR    local/remote ClinVar VCF (default: current NCBI release)
 #   TRIAGE_DOSSIERS   number of per-variant evidence dossiers to write (default 15; 0 = none)
+#   TRIAGE_REQUIRE_GENES  space-separated gene symbols and/or gene-list files that are added to the
+#                     phenotype gene set whatever PanelApp/HPO return (defaults to ATTENTION_GENES
+#                     from 00_config.sh; see docs/COHORT_NOTES.md -- Uzbek samples: the LSD genes)
 #
 # Tiers (independent, combined by union -- a ClinVar label may ADD a variant, never remove one):
 #   T1a ClinVar P/LP | T1b ClinVar "Conflicting" with a P/LP submission |
@@ -44,6 +47,12 @@ clinvar_args=()
 if [[ -n "${TRIAGE_CLINVAR:-}" ]]; then
   clinvar_args=(--clinvar-vcf "$TRIAGE_CLINVAR")
 fi
+require_args=()
+require_list="${TRIAGE_REQUIRE_GENES:-${ATTENTION_GENES:-}}"
+if [[ -n "$require_list" ]]; then
+  read -r -a required <<< "$require_list"
+  require_args=(--require "${required[@]}")
+fi
 annotate_args=(--workers 4)
 if [[ -n "${TRIAGE_NIRVANA:-}" ]]; then
   annotate_args+=(--nirvana "$TRIAGE_NIRVANA")
@@ -53,8 +62,8 @@ mkdir -p "$out_dir"
 log "[$sample_id] positive controls (must pass before any result is trusted)"
 python3 -X utf8 "$edt" control
 
-log "[$sample_id] gene set from PanelApp UK/AU + HPO (${TRIAGE_KEYWORDS}; ${TRIAGE_HPO})"
-python3 -X utf8 "$edt" genes --out "$out_dir" --keywords "${keywords[@]}" --hpo "${hpo[@]}" "${exclude_args[@]}"
+log "[$sample_id] gene set from PanelApp UK/AU + HPO (${TRIAGE_KEYWORDS}; ${TRIAGE_HPO})${require_list:+ + required: $require_list}"
+python3 -X utf8 "$edt" genes --out "$out_dir" --keywords "${keywords[@]}" --hpo "${hpo[@]}" "${exclude_args[@]}" "${require_args[@]}"
 python3 -X utf8 "$edt" regions --out "$out_dir"
 
 log "[$sample_id] scan calls (nothing dropped; low quality is flagged)"

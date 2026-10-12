@@ -1,0 +1,7 @@
+#chrom	start	end	gene	source
+chr1	155230269	155246178	GBA1	Ensembl GRCh38 +/-1kb flank
+chr4	985996	1009344	IDUA	Ensembl GRCh38 +/-1kb flank
+chr11	6389380	6395998	SMPD1	Ensembl GRCh38 +/-1kb flank
+chr14	87836819	87994665	GALC	Ensembl GRCh38 +/-1kb flank
+chr17	80100525	80120881	GAA	Ensembl GRCh38 +/-1kb flank
+chrX	101392272	101409012	GLA	Ensembl GRCh38 +/-1kb flank

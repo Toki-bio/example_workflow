@@ -32,6 +32,15 @@ _REPO_ROOT="$(cd "$_PIPELINE_DIR/.." && pwd)"
 # demo: demo FASTA contig names (demo_chr11_*) do not match the GRCh38 chrN coordinates in PANEL_BED.
 : "${RESTRICT_TO_PANEL:=0}"
 
+# Attention genes: a file (one gene per line, first token = current HGNC symbol, further tokens =
+# previous symbols/aliases) of genes that must be reviewed in EVERY run of a cohort, on top of the
+# panel. Empty by default. When set: stage 07 marks their variants ATTENTION and names any attention
+# gene with no variant listed; stage 08 adds them to the phenotype gene set; run_pipeline.sh refuses
+# to start when RESTRICT_TO_PANEL=1 and PANEL_BED lacks one of them (it would never be called).
+# Cohort rules live in docs/COHORT_NOTES.md. For Uzbek samples (GBA1, GAA, GLA, GALC, IDUA, SMPD1):
+#   export ATTENTION_GENES="$_REPO_ROOT/panels/lysosomal_storage/lysosomal_storage_genes.txt"
+: "${ATTENTION_GENES:=}"
+
 : "${THREADS:=8}"
 : "${OUT_DIR:=$_REPO_ROOT/test_case/results}"
 : "${TMP_DIR:=$OUT_DIR/tmp}"

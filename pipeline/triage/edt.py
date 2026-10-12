@@ -6,9 +6,11 @@ literature and gene-disease curation.
 Pure standard library. Public, keyless APIs only. Run with:  python -X utf8 edt.py <command> ...
 
 Commands (run in this order; every step writes into --out DIR and appends to DIR/manifest.json):
-  genes    --hpo HP:x [HP:y ...] --keywords kw1 [kw2 ...] [--amber]
+  genes    --hpo HP:x [HP:y ...] --keywords kw1 [kw2 ...] [--amber] [--require G1 file.txt ...]
            -> genes.tsv  (union of PanelApp UK + PanelApp Australia panels matching keywords,
-                          green (+amber with --amber), plus HPO-annotated genes of each HPO term)
+                          green (+amber with --amber), plus HPO-annotated genes of each HPO term,
+                          plus --require genes: symbols or gene-list files that a cohort rule says
+                          must be reviewed whatever the phenotype sources return)
   regions  -> regions.tsv  (gene spans from Ensembl REST; pad 5 kb)
   scan     --vcf FILE.vcf[.gz] [--sample NAME] [--min-qual 20]
            -> calls.tsv   (every non-ref genotype inside phenotype-gene spans; nothing else dropped)
@@ -145,6 +147,33 @@ def panelapp_panels(site):
     return out
 
 
+def read_gene_list(path):
+    """Gene-list file: one gene per line, first token = current symbol (further tokens are aliases,
+    ignored here; comment lines start with #)."""
+    out = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            t = line.split()
+            if t and not t[0].startswith("#"):
+                out.append(t[0])
+    return out
+
+
+def add_required_genes(genes, required, label="required"):
+    """Add genes a cohort rule requires in the set (docs/COHORT_NOTES.md), whatever PanelApp and HPO
+    returned. Each item is a gene symbol or a path to a gene-list file. Source is recorded as
+    ``<label>``; no mode of inheritance is known from this source. Returns the symbols added."""
+    added = []
+    for item in required or []:
+        syms = read_gene_list(item) if os.path.isfile(item) else [item]
+        for sym in syms:
+            e = genes.setdefault(sym, {"gene": sym, "sources": set(), "moi": set()})
+            e["sources"].add(label)
+            if sym not in added:
+                added.append(sym)
+    return added
+
+
 def cmd_genes(a):
     os.makedirs(a.out, exist_ok=True)
     genes, panels_used = {}, []
@@ -180,11 +209,15 @@ def cmd_genes(a):
             e = genes.setdefault(g["name"], {"gene": g["name"], "sources": set(), "moi": set()})
             e["sources"].add(f"HPO:{hpo}")
         panels_used.append(f"HPO-annotation:{hpo}:{len(d.get('genes', []))} genes")
+    required = add_required_genes(genes, getattr(a, "require", None))
+    if required:
+        panels_used.append(f"required:{len(required)} genes:{','.join(required)}")
     rows = [{"gene": k, "n_sources": len(v["sources"]), "sources": ";".join(sorted(v["sources"])),
              "moi": ";".join(sorted(v["moi"]))} for k, v in sorted(genes.items())]
     write_tsv(os.path.join(a.out, "genes.tsv"), rows, ["gene", "n_sources", "sources", "moi"])
     manifest(a.out, "genes", {"date": str(date.today()), "keywords": a.keywords, "hpo": a.hpo,
-                              "amber": a.amber, "sources": panels_used, "n_genes": len(rows)})
+                              "amber": a.amber, "required": required, "sources": panels_used,
+                              "n_genes": len(rows)})
     print(f"{len(rows)} genes from {len(panels_used)} panels/terms -> genes.tsv")
     for s in panels_used:
         print("  ", s)
@@ -996,7 +1029,7 @@ def main():
         p.add_argument("--out", required=(name != "control"), default=".")
         p.set_defaults(func=f)
         return p
-    p = add("genes", cmd_genes); p.add_argument("--hpo", nargs="*"); p.add_argument("--keywords", nargs="*"); p.add_argument("--amber", action="store_true"); p.add_argument("--exclude", nargs="*", help="drop matched PanelApp panels whose name contains any of these substrings")
+    p = add("genes", cmd_genes); p.add_argument("--hpo", nargs="*"); p.add_argument("--keywords", nargs="*"); p.add_argument("--amber", action="store_true"); p.add_argument("--exclude", nargs="*", help="drop matched PanelApp panels whose name contains any of these substrings"); p.add_argument("--require", nargs="*", help="gene symbols and/or gene-list files always added to the gene set (cohort rule, see docs/COHORT_NOTES.md)")
     add("regions", cmd_regions)
     p = add("scan", cmd_scan); p.add_argument("--vcf", required=True); p.add_argument("--sample"); p.add_argument("--min-qual", type=float, default=20)
     p = add("clinvar", cmd_clinvar); p.add_argument("--clinvar-vcf")

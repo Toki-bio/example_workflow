@@ -42,7 +42,8 @@ useful background if you're new to this space.
 | [`docs/DRAGEN_TO_OSS_MAPPING.md`](docs/DRAGEN_TO_OSS_MAPPING.md) | Stage-by-stage table mapping each DRAGEN feature to its open-source replacement |
 | [`docs/SAREK_ALTERNATIVE.md`](docs/SAREK_ALTERNATIVE.md) | Alternative sequencing engine: [nf-core/sarek](https://nf-co.re/sarek/3.9.0/) (Nextflow); clinical stages 05–07 shared |
 | [`docs/ARRAY_GENOTYPING_ROADMAP.md`](docs/ARRAY_GENOTYPING_ROADMAP.md) | **(roadmap, not implemented)** IDAT → genotype calling estimate: GenomeStudio vs. DRAGEN Array, plus open-source callers (zCall, crlmm) |
-| [`panels/`](panels/) | Swappable gene-panel configs (gene list + BED region file); ships with a cardiomyopathy/channelopathy panel as the worked example |
+| [`panels/`](panels/) | Swappable gene-panel configs (gene list + BED region file); ships with a cardiomyopathy/channelopathy panel as the worked example and a lysosomal storage disorder attention panel (GBA1, GAA, GLA, GALC, IDUA, SMPD1) |
+| [`docs/COHORT_NOTES.md`](docs/COHORT_NOTES.md) | Cohort-specific rules enforced through `ATTENTION_GENES`: genes reviewed in every run on top of the panel. **Uzbek samples: GBA1, GAA, GLA, GALC, IDUA, SMPD1.** |
 | [`envs/environment.yml`](envs/environment.yml) | Conda environment: python3, bwa, samtools, bcftools, fastp, htslib (tabix/bgzip) (GATK/snpEff optional, install separately) |
 | [`pipeline/`](pipeline/) | The pipeline itself, per sample: align → call variants (bcftools, + GATK4 as an optional cross-check) → annotate (snpEff/VEP + ClinVar) → filter pathogenic calls → HTML report. After all samples: case/control aggregate. |
 | [`docs/TRIAGE.md`](docs/TRIAGE.md) | Stage 08: phenotype-driven triage that does not trust ClinVar's aggregate label (PanelApp/HPO gene sets, tiers T1a/T1b/T2, evidence dossiers) |
@@ -128,6 +129,23 @@ output, only a quietly inflated variant count with low-quality/low-depth noise m
 downstream annotation and pathogenic-filtering. If a run's `hard-filtered.vcf.gz` has roughly the
 same record count as its `raw.vcf.gz`, the filter step isn't actually running.
 
+
+### Cohort rules: attention genes (Uzbek samples)
+
+Some cohorts carry a standing rule that certain genes are reviewed in every run, whatever the
+panel. **For Uzbek samples the rule is: pay specific attention to GBA1, GAA, GLA, GALC, IDUA and
+SMPD1** (lysosomal storage disorders, all treatable). Set, in addition to the panel variables above:
+
+```bash
+export ATTENTION_GENES="$PWD/panels/lysosomal_storage/lysosomal_storage_genes.txt"
+```
+
+Stage 07 then lists every variant in these genes (marked `ATTENTION`) and names any attention gene
+with no variant; stage 08 adds them to the triage gene set; and with `RESTRICT_TO_PANEL=1` the run
+refuses to start unless `PANEL_BED` also contains their regions (concatenate
+`panels/lysosomal_storage/lysosomal_storage_genes_grch38.bed` onto your panel BED). Details, the
+per-gene interpretation caveats, and the place to record rules for other cohorts:
+[`docs/COHORT_NOTES.md`](docs/COHORT_NOTES.md).
 
 `my_cohort_manifest.tsv` is tab-separated: `sample_id  case|control  R1.fastq[.gz]  R2.fastq[.gz]`
 (see `test_case/samples.tsv` for the format). R1/R2 accept plain `.fastq` or `.fastq.gz`; the

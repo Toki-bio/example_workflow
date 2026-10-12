@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased (cohort attention genes)
+
+### Added
+- **`ATTENTION_GENES`** (`pipeline/00_config.sh`): a gene-list file of genes that must be reviewed in every run
+  of a cohort on top of the panel. Stage 07 always lists their variants (marked `ATTENTION`) and names every
+  attention gene with no variant listed; stage 08 adds them to the triage gene set (`--require`, or
+  `TRIAGE_REQUIRE_GENES`, defaulting to `ATTENTION_GENES`) and records them in `manifest.json`;
+  `run_pipeline.sh` refuses to start when `RESTRICT_TO_PANEL=1` and `PANEL_BED` has no region for one of them.
+- `panels/lysosomal_storage/`: GBA1, GAA, GLA, GALC, IDUA, SMPD1 with GRCh38 regions and per-gene
+  interpretation notes.
+- `docs/COHORT_NOTES.md`: cohort rules. **Uzbek samples: pay specific attention to GBA1, GAA, GLA, GALC, IDUA,
+  SMPD1** (rule set 2026-10-12).
+- Gene-list files may carry previous symbols / aliases after the current symbol on the same line (`GBA1 GBA`);
+  stage 07 matches all of them. Existing one-symbol-per-line lists are unchanged.
+- Tests for the attention-gene report paragraph and the `--require` gene-set merge.
+
 ## Unreleased (branch v2)
 
 ### Fixed

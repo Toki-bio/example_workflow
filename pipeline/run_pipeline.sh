@@ -32,6 +32,31 @@ resolve_from_manifest() {
 }
 
 log "Manifest: $manifest"
+
+# Attention genes (docs/COHORT_NOTES.md): they must be callable, or the run must not start.
+if [[ -n "${ATTENTION_GENES:-}" ]]; then
+  if [[ ! -f "$ATTENTION_GENES" ]]; then
+    echo "ERROR: ATTENTION_GENES file not found: $ATTENTION_GENES" >&2
+    exit 1
+  fi
+  log "Attention genes (reviewed in every report): $ATTENTION_GENES"
+  if [[ "${RESTRICT_TO_PANEL:-0}" == "1" ]]; then
+    missing=()
+    while read -r gene _rest; do
+      [[ -z "$gene" || "$gene" == \#* ]] && continue
+      if ! awk -F'\t' -v g="$gene" '!/^#/ && toupper($4) == toupper(g) { found = 1 } END { exit !found }' "$PANEL_BED"; then
+        missing+=("$gene")
+      fi
+    done < "$ATTENTION_GENES"
+    if (( ${#missing[@]} > 0 )); then
+      echo "ERROR: RESTRICT_TO_PANEL=1 but PANEL_BED has no region for attention gene(s): ${missing[*]}" >&2
+      echo "       PANEL_BED=$PANEL_BED" >&2
+      echo "       Calling would silently skip these genes. Append their regions to PANEL_BED" >&2
+      echo "       (e.g. panels/lysosomal_storage/lysosomal_storage_genes_grch38.bed) or set RESTRICT_TO_PANEL=0." >&2
+      exit 1
+    fi
+  fi
+fi
 log "Preparing reference (indexes if missing)"
 bash "$SCRIPT_DIR/01_prepare_reference.sh"
 

@@ -34,6 +34,7 @@ ROWS = [
     (400, "PASS", "Benign", "", "PANELGENE"),                                                  # benign inside a panel gene
     (500, "LowQual", "Pathogenic", "", "OTHERGENE"),                                           # T1a, failed FILTER
     (600, "PASS", "Benign", "", "OTHERGENE"),                                                  # benign outside the panel
+    (700, "PASS", "Benign", "", "GBA"),                                                        # benign, old symbol of an attention gene
 ]
 
 
@@ -76,8 +77,31 @@ class TestTierPipeline(unittest.TestCase):
         for pos in ("chr1:100", "chr1:200", "chr1:500", "chr1:400"):   # P, conflicting+P, failed-filter P, panel benign
             self.assertIn(pos, text)
         self.assertNotIn("chr1:600", text)                              # benign outside the panel stays out
+        self.assertNotIn("chr1:700", text)                              # ... also in a gene that is not an attention gene
         self.assertIn("Conflicting (has P/LP submissions)", text)
         self.assertIn("Scope and limits", text)
+        self.assertNotIn("Attention genes", text)
+
+    def test_stage07_attention_genes_always_listed_and_absence_named(self):
+        """Cohort rule (docs/COHORT_NOTES.md): attention genes are shown whatever the label, matched
+        through previous symbols, and an attention gene with no variant is named, not silent."""
+        import os
+        panel = self.tmp / "panel.txt"
+        panel.write_text("PANELGENE\n")
+        attention = self.tmp / "attention.txt"
+        attention.write_text("# lysosomal storage attention genes\nGBA1 GBA\nGAA\n")
+        html = self.tmp / "r.html"
+        env = dict(os.environ, ATTENTION_GENES=str(attention))
+        res = subprocess.run([sys.executable, str(PIPE / "07_generate_report.py"), str(self.vcf), "s1", str(panel), str(html)],
+                             check=True, capture_output=True, text=True, env=env)
+        text = html.read_text()
+        self.assertIn("chr1:700", text)                                 # benign in GBA (alias of GBA1) is listed
+        self.assertIn("ATTENTION", text)
+        self.assertIn("Attention genes", text)
+        self.assertIn("GBA1, GAA", text)                                # current symbols, in file order
+        self.assertIn("No variant listed for: GAA", text)               # the absence is stated
+        self.assertNotIn("No variant listed for: GBA1", text)
+        self.assertIn("without: GAA", res.stderr)
 
 
 if __name__ == "__main__":

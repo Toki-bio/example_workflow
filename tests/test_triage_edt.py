@@ -77,6 +77,38 @@ class TestScoringAdjust(unittest.TestCase):
         self.assertTrue(any("COMMON" in n for n in notes))
 
 
+class TestRequiredGenes(unittest.TestCase):
+    """Cohort rule (docs/COHORT_NOTES.md): --require genes join the phenotype set whatever PanelApp/HPO say."""
+
+    def test_symbols_and_gene_list_file_are_added_and_recorded(self):
+        import tempfile
+        genes = {"SCN1A": {"gene": "SCN1A", "sources": {"PanelAppUK:1:green"}, "moi": set()}}
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "lsd.txt")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("# attention genes\nGBA1 GBA\nGAA\n\nSMPD1\n")
+            added = edt.add_required_genes(genes, [path, "GLA", "SCN1A"])
+        self.assertEqual(added, ["GBA1", "GAA", "SMPD1", "GLA", "SCN1A"])
+        self.assertEqual(set(genes), {"SCN1A", "GBA1", "GAA", "SMPD1", "GLA"})
+        self.assertNotIn("GBA", genes)                                   # aliases are not separate genes
+        self.assertEqual(genes["GBA1"]["sources"], {"required"})
+        self.assertEqual(genes["SCN1A"]["sources"], {"PanelAppUK:1:green", "required"})  # existing row kept
+
+    def test_required_gene_variant_is_in_phenotype_set(self):
+        genes = {}
+        edt.add_required_genes(genes, ["GBA1"])
+        ann = {"vep_status": "ok", "vep_gene": "GBA1", "all_genes": "GBA1",
+               "any_protein_altering": "missense_variant", "gnomade_af": "", "gnomadg_af": ""}
+        t, af, in_pheno, notes, _ = edt.tiers_for({"gene_span": "GBA1"}, ann, None, genes, 0.001, 0.01)
+        self.assertTrue(in_pheno)
+        self.assertIn("T2", t)
+
+    def test_nothing_required_is_a_no_op(self):
+        genes = {}
+        self.assertEqual(edt.add_required_genes(genes, None), [])
+        self.assertEqual(genes, {})
+
+
 class TestVepSummary(unittest.TestCase):
     def test_frequency_uses_only_the_samples_alt_allele(self):
         rec = {"input": "1 100 . A G . . .", "most_severe_consequence": "missense_variant",

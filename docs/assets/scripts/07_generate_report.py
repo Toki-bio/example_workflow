@@ -14,10 +14,21 @@ see panels/README.md):
 
 Usage:
     07_generate_report.py <annotated.vcf.gz> <sample_id> <panel_genes.txt> <output.html> [panel_name]
+
+Environment:
+    ATTENTION_GENES  optional gene-list file (same format as panel_genes.txt) of genes that must
+                     be reviewed in every run of the cohort whatever the panel (docs/COHORT_NOTES.md).
+                     Their variants are always listed and marked ATTENTION, and the report names
+                     every attention gene for which no variant is listed, so an empty gene is a
+                     visible statement rather than a silent absence.
+
+Gene-list format: one gene per line; the first token is the current HGNC symbol, further
+whitespace-separated tokens are previous symbols or aliases that are matched too (``GBA1 GBA``).
 """
 import gzip
 import html
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -77,9 +88,36 @@ def parse_ann(info):
     }
 
 
+def load_gene_list(path):
+    """[(symbol, {symbol, alias, ...}), ...] in file order. One gene per line: current HGNC symbol
+    first, optional previous symbols / aliases after it; lines starting with # are comments."""
+    genes = []
+    with open(path) as fh:
+        for line in fh:
+            tokens = line.split()
+            if not tokens or tokens[0].startswith("#"):
+                continue
+            genes.append((tokens[0].upper(), {t.upper() for t in tokens}))
+    return genes
+
+
 def load_panel(panel_path):
-    with open(panel_path) as fh:
-        return {line.strip().upper() for line in fh if line.strip()}
+    """Set of every symbol and alias in a gene-list file (upper-cased)."""
+    return {alias for _, aliases in load_gene_list(panel_path) for alias in aliases}
+
+
+def load_attention_genes():
+    path = os.environ.get("ATTENTION_GENES", "").strip()
+    return load_gene_list(path) if path else []
+
+
+def attention_symbol(gene, attention):
+    """Current symbol of the attention gene that `gene` (symbol or alias) belongs to, else ''."""
+    g = gene.upper()
+    for symbol, aliases in attention:
+        if g in aliases:
+            return symbol
+    return ""
 
 
 SIG_STYLE = {
@@ -104,12 +142,12 @@ def is_pass_filter(filt: str) -> bool:
     return False
 
 
-def should_include(gene, impact, sig, panel_genes):
-    """A ClinVar label may add a row but never hides a panel-gene variant: benign-labelled
-    variants inside the panel genes stay (shown with their label, to be verified)."""
+def should_include(gene, impact, sig, panel_genes, attention_genes=frozenset()):
+    """A ClinVar label may add a row but never hides a panel-gene (or attention-gene) variant:
+    benign-labelled variants inside those genes stay (shown with their label, to be verified)."""
     if sig in ("pathogenic", "likely_pathogenic", "conflicting_pathogenic", "uncertain", "conflicting"):
         return True
-    if gene.upper() in panel_genes:
+    if gene.upper() in panel_genes or gene.upper() in attention_genes:
         return True
     if sig in ("benign", "likely_benign"):
         return False
@@ -118,7 +156,8 @@ def should_include(gene, impact, sig, panel_genes):
     return False
 
 
-def build_rows(vcf_path, panel_genes):
+def build_rows(vcf_path, panel_genes, attention=()):
+    attention_set = {alias for _, aliases in attention for alias in aliases}
     rows = []
     with open_vcf(vcf_path) as fh:
         for line in fh:
@@ -132,7 +171,7 @@ def build_rows(vcf_path, panel_genes):
             clnsig = info.get("CLNSIG", "")
             sig = clinical_significance(clnsig, info.get("CLNSIGCONF", ""))
 
-            if not should_include(ann["gene"], ann["impact"], sig, panel_genes):
+            if not should_include(ann["gene"], ann["impact"], sig, panel_genes, attention_set):
                 continue
 
             genotype = ""
@@ -150,6 +189,7 @@ def build_rows(vcf_path, panel_genes):
             rows.append({
                 "gene": ann["gene"] or "Unknown",
                 "in_panel": ann["gene"].upper() in panel_genes,
+                "attention": attention_symbol(ann["gene"], attention),
                 "variant": ann["hgvsp"] or ann["hgvsc"] or f"{ref}>{alt}",
                 "chr_pos": f"{chrom}:{pos}",
                 "consequence": ann["consequence"],
@@ -165,7 +205,7 @@ def build_rows(vcf_path, panel_genes):
 
 
 ROW_TEMPLATE = """<tr class="{row_class}">
-  <td>{gene}{panel_badge}</td>
+  <td>{gene}{panel_badge}{attention_badge}</td>
   <td>{variant}</td>
   <td>{chr_pos}</td>
   <td>{consequence}</td>
@@ -190,6 +230,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   th, td {{ border: 1px solid #ddd; padding: 6px 8px; text-align: left; }}
   th {{ background: #f4f4f4; cursor: pointer; position: sticky; top: 0; }}
   tr.panel-gene {{ background: #f5eefc; }}
+  tr.attention-gene {{ background: #fff3d6; }}
+  .attention-tag {{ color: #a05a00; font-weight: bold; font-size: 0.7rem; margin-left: 4px; }}
+  .attention {{ border-left: 4px solid #e8a33a; padding: 6px 10px; }}
   .badge {{ color: white; border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; }}
   .panel-tag {{ color: #6c3fc5; font-weight: bold; font-size: 0.7rem; margin-left: 4px; }}
   #search {{ margin-bottom: 1rem; padding: 6px; width: 300px; }}
@@ -204,6 +247,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   Generated by the open-source replacement pipeline (see docs/DRAGEN_TO_OSS_MAPPING.md)
 </div>
 <input id="search" type="text" placeholder="Filter by gene, variant, significance...">
+{attention_block}
 <p class="meta"><strong>Scope and limits.</strong> Listed: variants whose ClinVar aggregate is
 Pathogenic, Likely pathogenic, Conflicting (shown separately when a submission is P/LP) or VUS;
 every variant in the panel genes whatever its ClinVar label; and other HIGH-impact variants.
@@ -249,7 +293,27 @@ document.querySelectorAll('#report th').forEach(function (th, idx) {{
 """
 
 
-def render_html(sample_id, rows, panel_name):
+def attention_html(rows, attention):
+    """Paragraph naming the attention genes and, explicitly, those with no variant in this report."""
+    if not attention:
+        return ""
+    seen = {r["attention"] for r in rows if r["attention"]}
+    symbols = [s for s, _ in attention]
+    missing = [s for s in symbols if s not in seen]
+    text = ("<p class=\"meta attention\"><strong>Attention genes</strong> (reviewed in every run of this "
+            f"cohort, marked ATTENTION below): {html.escape(', '.join(symbols))}. ")
+    if missing:
+        text += (f"<strong>No variant listed for: {html.escape(', '.join(missing))}.</strong> "
+                 "Absence of a listed variant is not evidence of a normal gene: confirm these regions were "
+                 "called (PANEL_BED when RESTRICT_TO_PANEL=1) and covered, and that CNVs/deletions were "
+                 "assessed separately. ")
+    else:
+        text += "Every attention gene has at least one variant listed. "
+    text += "See docs/COHORT_NOTES.md and panels/lysosomal_storage/README.md for per-gene interpretation notes.</p>"
+    return text
+
+
+def render_html(sample_id, rows, panel_name, attention=()):
     row_html = []
     for r in rows:
         sig_label, sig_color = SIG_STYLE.get(r["significance"], SIG_STYLE["unknown"])
@@ -259,9 +323,10 @@ def render_html(sample_id, rows, panel_name):
             if r["clinvar_id"] else ""
         )
         row_html.append(ROW_TEMPLATE.format(
-            row_class="panel-gene" if r["in_panel"] else "",
+            row_class="attention-gene" if r.get("attention") else ("panel-gene" if r["in_panel"] else ""),
             gene=html.escape(r["gene"]),
             panel_badge='<span class="panel-tag">PANEL</span>' if r["in_panel"] else "",
+            attention_badge='<span class="attention-tag">ATTENTION</span>' if r.get("attention") else "",
             variant=html.escape(r["variant"]),
             chr_pos=html.escape(r["chr_pos"]),
             consequence=html.escape(r["consequence"]),
@@ -280,6 +345,7 @@ def render_html(sample_id, rows, panel_name):
         panel_name=html.escape(panel_name),
         n_rows=len(rows),
         rows="\n".join(row_html),
+        attention_block=attention_html(rows, attention),
     )
 
 
@@ -292,16 +358,22 @@ def main():
     vcf_path, sample_id, panel_path, out_path = sys.argv[1:5]
     panel_name = sys.argv[5] if len(sys.argv) == 6 else "Gene panel"
     panel_genes = load_panel(panel_path)
-    rows = build_rows(vcf_path, panel_genes)
+    attention = load_attention_genes()
+    rows = build_rows(vcf_path, panel_genes, attention)
     def _rank(sig):
         return 0 if sig in ("pathogenic", "likely_pathogenic") else (1 if sig == "conflicting_pathogenic" else 2)
 
-    rows.sort(key=lambda r: (_rank(r["significance"]), not r["in_panel"]))
+    rows.sort(key=lambda r: (_rank(r["significance"]), not r["attention"], not r["in_panel"]))
 
     with open(out_path, "w") as out:
-        out.write(render_html(sample_id, rows, panel_name))
+        out.write(render_html(sample_id, rows, panel_name, attention))
 
     print(f"[{sample_id}] {len(rows)} clinically-relevant variants -> {out_path}", file=sys.stderr)
+    if attention:
+        seen = {r["attention"] for r in rows if r["attention"]}
+        missing = [s for s, _ in attention if s not in seen]
+        print(f"[{sample_id}] attention genes: {len(attention)}; with a listed variant: {len(seen)}; "
+              f"without: {', '.join(missing) or 'none'}", file=sys.stderr)
 
 
 if __name__ == "__main__":
